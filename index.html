@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DEADZONE — 3D Zombie Survival Shooter</title>
+  <meta name="description" content="Survive the outbreak. A fast, gory 3D zombie survival shooter you play right in your browser — 20+ mutant zombie types, crafting, base-building, and endless night. No install.">
+  <meta name="theme-color" content="#0a0e0a">
+  <meta name="author" content="SpartanKing18">
+
+  <!-- Open Graph / social sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="DEADZONE — 3D Zombie Survival Shooter">
+  <meta property="og:description" content="Survive the outbreak. 20+ mutant zombie types, crafting, and base-building — playable in your browser, no install.">
+  <meta property="og:site_name" content="DEADZONE">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="DEADZONE — 3D Zombie Survival Shooter">
+  <meta name="twitter:description" content="Survive the outbreak — a browser-based 3D zombie shooter.">
+
+  <!-- Inline SVG favicon (no external request) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%9F%3C/text%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <!-- Fullscreen effect overlays (outside HUD so they cover everything) -->
+    <div id="damage-vignette"></div>
+    <div id="low-health-overlay"></div>
+    <div id="infection-overlay"></div>
+    <div id="night-vision"></div>
+    <div id="gas-mask-overlay"></div>
+    <div id="hazard-overlay"></div>
+    <div id="hitmarker"></div>
+    <div id="scope-overlay">
+      <div style="position:absolute;inset:0;background:rgba(0,0,0,0.78);"></div>
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:340px;height:340px;border-radius:50%;background:transparent;box-shadow:0 0 0 9999px rgba(0,0,0,0.78);border:3px solid #44aa44;"></div>
+      <div style="position:absolute;top:50%;left:50%;width:320px;height:1px;background:#44aa44;transform:translate(-50%,-50%);opacity:0.7;"></div>
+      <div style="position:absolute;top:50%;left:50%;width:1px;height:320px;background:#44aa44;transform:translate(-50%,-50%);opacity:0.7;"></div>
+      <div style="position:absolute;top:50%;left:50%;width:12px;height:12px;border-radius:50%;border:1.5px solid #44aa44;transform:translate(-50%,-50%);"></div>
+    </div>
+    <!-- Weapon HUD lives outside #hud so z-index stacks correctly -->
+    <div id="weapon-hud"></div>
+
+    <div id="hud">
+      <div id="health-bar-container" class="hud-bar-container health-bar-container">
+        <div id="health-text" class="bar-label">100</div>
+        <div class="hud-bar">
+          <div id="health-bar" class="health-bar"></div>
+        </div>
+      </div>
+
+      <div id="stamina-bar-container" class="hud-bar-container stamina-bar-container">
+        <div class="bar-label">Stamina <span class="bar-value" id="stamina-val">100</span></div>
+        <div class="hud-bar">
+          <div id="stamina-bar" class="stamina-bar"></div>
+        </div>
+      </div>
+
+      <div id="hunger-bar-container" class="hud-bar-container hunger-bar-container">
+        <div class="bar-label">Hunger <span class="bar-value" id="hunger-val">100</span></div>
+        <div class="hud-bar">
+          <div id="hunger-bar" class="hunger-bar"></div>
+        </div>
+      </div>
+
+      <div id="thirst-bar-container" class="hud-bar-container thirst-bar-container">
+        <div class="bar-label">Thirst <span class="bar-value" id="thirst-val">100</span></div>
+        <div class="hud-bar">
+          <div id="thirst-bar" class="thirst-bar"></div>
+        </div>
+      </div>
+
+      <div id="temperature-display" class="warm">🌡 37.0°C</div>
+
+      <div id="ammo-display" class="ammo-display">
+        <div id="ammo-counter">30 / 120</div>
+      </div>
+
+      <div id="coords-display" class="hud-element" style="display: none;">
+        <div>X: <span id="coord-x">0.0</span></div>
+        <div>Y: <span id="coord-y">0.0</span></div>
+        <div>Z: <span id="coord-z">0.0</span></div>
+      </div>
+
+      <div id="time-display" class="hud-element">
+        <div id="time-text">12:00</div>
+        <div id="weather-display"></div>
+      </div>
+
+      <div id="hud-stats" class="hud-element">
+        <div id="hud-kills-row">☠ <span id="hud-kills">0</span></div>
+        <div id="hud-time-row">⏱ <span id="hud-time">00:00</span></div>
+        <div id="hud-zombies-row">🧟 <span id="hud-zombies">0</span></div>
+      </div>
+
+      <div id="fps-display" class="hud-element" style="display: none;">
+        FPS: <span id="fps-counter">60</span>
+      </div>
+
+      <div id="crosshair"></div>
+      <div class="xhair-t xhair-line"></div>
+      <div class="xhair-b xhair-line"></div>
+      <div class="xhair-l xhair-line"></div>
+      <div class="xhair-r xhair-line"></div>
+      <div class="xhair-dot"></div>
+      <div id="item-name-display"></div>
+      <div id="loot-notification"></div>
+      <div id="interact-prompt" class="interact-prompt" style="display:none;">
+        <span id="interact-key">[F]</span>
+        <span id="interact-label">Open Door</span>
+      </div>
+      <div id="weapon-name-display"></div>
+      <div id="reload-bar-container" style="display:none;">
+        <div id="reload-bar"></div>
+        <div id="reload-label">Reloading...</div>
+      </div>
+
+      <div id="status-effects">
+        <div id="status-bleeding" class="status-icon" style="display:none;">🩸 Bleeding</div>
+        <div id="status-infected" class="status-icon" style="display:none;">☣ Infected</div>
+      </div>
+      <div id="bhop-chain"></div>
+      <div id="kill-streak"></div>
+      <div id="compass"><span class="north">N</span> 0°</div>
+
+      <div id="quick-slots"></div>
+
+      <div id="minimap-container">
+        <canvas id="minimap" width="200" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Fixed-position HUD overlays (outside #hud to avoid z-index conflicts) -->
+    <div id="kill-feed"></div>
+    <div id="difficulty-hud"></div>
+    <div id="melee-combo"></div>
+
+    <!-- XP bar (bottom-center) -->
+    <div id="xp-bar-container">
+      <div id="xp-label"></div>
+      <div id="xp-track"><div id="xp-bar"></div></div>
+    </div>
+
+    <!-- Active buff/effect icons -->
+    <div id="buff-bar"></div>
+
+    <div id="inventory-screen">
+      <div id="inv-panel">
+        <div id="inv-header">
+          <span class="inv-title">INVENTORY</span>
+          <span class="inv-hint">Click to use · E to close</span>
+        </div>
+        <div id="inv-body">
+          <div id="inv-equip">
+            <div class="inv-equip-slot" data-equip="head"><span class="equip-label">HEAD</span></div>
+            <div class="inv-equip-slot" data-equip="chest"><span class="equip-label">CHEST</span></div>
+            <div class="inv-equip-slot" data-equip="legs"><span class="equip-label">LEGS</span></div>
+            <div class="inv-equip-slot" data-equip="feet"><span class="equip-label">FEET</span></div>
+            <div class="inv-equip-sep"></div>
+            <div class="inv-equip-slot" data-equip="offhand"><span class="equip-label">HAND</span></div>
+          </div>
+          <div id="inv-grid-area">
+            <div id="inventory-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="recipes" style="display:none"></div>
+
+    <div id="npc-dialog">
+      <div class="npc-name"></div>
+      <div class="npc-text"></div>
+      <div class="dialog-options"></div>
+    </div>
+
+    <div class="action-prompt" id="action-prompt">
+      <div id="prompt-text"></div>
+      <div class="action-buttons">
+        <button class="action-btn" id="action-yes">Yes</button>
+        <button class="action-btn cancel" id="action-no">No</button>
+      </div>
+    </div>
+
+    <div id="command-console" style="display: none;">
+      <div id="console-output"></div>
+      <input type="text" id="console-input" placeholder="Type command (e.g. /godmode, /spawn zombie walker)">
+    </div>
+
+    <div id="settings-menu" style="display: none;">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="settings-close">X</button>
+      </div>
+      <div class="settings-tabs">
+        <button class="tab-btn active" data-tab="graphics">Graphics</button>
+        <button class="tab-btn" data-tab="controls">Controls</button>
+        <button class="tab-btn" data-tab="keybinds">Keybinds</button>
+        <button class="tab-btn" data-tab="audio">Audio</button>
+        <button class="tab-btn" data-tab="gameplay">Gameplay</button>
+      </div>
+      <div id="settings-content"></div>
+    </div>
+
+    <div id="death-screen" style="display: none;">
+      <div class="death-container">
+        <h1>You Died</h1>
+        <p id="death-cause">Killed by zombie</p>
+        <div class="death-stats">
+          <p>Zombies Killed: <span id="stat-kills">0</span></p>
+          <p>Survival Time: <span id="stat-time">00:00</span></p>
+          <p>Distance Traveled: <span id="stat-distance">0</span>m</p>
+        </div>
+        <div class="death-buttons">
+          <button id="respawn-btn">Respawn</button>
+          <button id="quit-btn">Quit to Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="main-menu" class="main-menu">
+      <div class="menu-content">
+        <div class="menu-title">
+          <h1>⚠ ZOMBIE SURVIVAL ⚠</h1>
+          <p class="subtitle">The World Has Fallen</p>
+          <p class="warning-text">Last Transmission: 0600 hours</p>
+        </div>
+
+        <div class="menu-buttons">
+          <button id="singleplayer-btn" class="menu-btn">Start Game</button>
+          <button id="settings-btn" class="menu-btn">Settings</button>
+          <button id="quit-btn-menu" class="menu-btn quit">Exit</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="error-display" class="error-display">
+      <div class="error-content">
+        <h3>ERROR</h3>
+        <p id="error-message"></p>
+        <button id="error-close" class="error-btn">Dismiss</button>
+      </div>
+    </div>
+
+    <div id="world-select" class="world-select">
+      <div class="world-content">
+        <button id="back-btn" class="back-btn">← Back</button>
+
+        <h2>Create New World</h2>
+
+        <div class="world-form">
+          <div class="form-group">
+            <label>World Name:</label>
+            <input type="text" id="world-name" placeholder="My Survival World" value="Survival World">
+          </div>
+
+          <div class="form-group">
+            <label>Difficulty:</label>
+            <select id="difficulty-select">
+              <option value="easy">Easy</option>
+              <option value="normal" selected>Normal</option>
+              <option value="hard">Hard</option>
+              <option value="insane">Insane</option>
+            </select>
+          </div>
+
+          <button id="create-world-btn" class="create-btn">Create World</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="item-hover-card">
+    <div id="ihc-inner">
+      <div class="wil-icon ihc-icon" id="ihc-icon"></div>
+      <div class="ihc-info">
+        <div class="ihc-name" id="ihc-name">Item Name</div>
+        <div class="ihc-rarity" id="ihc-rarity">COMMON</div>
+        <div class="ihc-hint">Click to pick up</div>
+      </div>
+      <div class="ihc-qty" id="ihc-qty" style="display:none"></div>
+    </div>
+  </div>
+  <!-- Speed-boost / adrenaline indicator -->
+  <div id="speed-boost-indicator"></div>
+  <!-- Berserker rage indicator -->
+  <div id="berserker-indicator">⚔ BERSERKER ⚔</div>
+
+  <!-- Room transition fade -->
+  <div id="room-fade"></div>
+
+  <!-- Readable note / journal popup -->
+  <div id="readable-popup" style="display:none;">
+    <div id="readable-inner">
+      <div id="readable-title"></div>
+      <div id="readable-body"></div>
+      <button id="readable-close">Close [E]</button>
+    </div>
+  </div>
+
+  <!-- Mission-complete toast -->
+  <div id="mission-toast" style="display:none;"></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

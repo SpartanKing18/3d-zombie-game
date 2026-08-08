@@ -1,0 +1,19 @@
+# Render blueprint — deploy as a static site.
+# Render will auto-detect this, or you can configure manually:
+#   Build command:      npm install && npm run build
+#   Publish directory:  dist
+services:
+  - type: web
+    name: zombie-web
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    # SPA-style fallback so any route serves the game
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
