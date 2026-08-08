@@ -1,5 +1,7 @@
 node_modules/
-dist/
 *.log
 .DS_Store
 .vite/
+
+# dist/ is committed so Render can serve it even with an empty Build Command.
+# If you set a Build Command (npm run build) in Render, you can re-ignore dist/.
