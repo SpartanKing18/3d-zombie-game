@@ -154,6 +154,8 @@ export class ZombieManager {
 
     this.zombies = aliveZombies;
 
+    this._separateCrowd();
+
     // Progressive difficulty: faster spawns and higher cap as survival time grows
     const elapsed = this.game.survivalStartTime
       ? (Date.now() - this.game.survivalStartTime) / 1000
@@ -173,6 +175,33 @@ export class ZombieManager {
     if (this._groanTimer <= 0 && this.zombies.length > 0) {
       this.game.audioManager?.playZombieGroan?.();
       this._groanTimer = 3 + Math.random() * 5;
+    }
+  }
+
+  // Soft crowd separation so a horde doesn't merge into one clipping blob.
+  // Zombies don't collide with each other in physics (by design, for perf), so we
+  // nudge overlapping pairs apart here. Cheap O(n²) — the count is capped at ~80.
+  _separateCrowd() {
+    const zs = this.zombies;
+    const n = zs.length;
+    if (n < 2) return;
+    const MIN = 0.85;          // desired spacing between centers
+    const MIN2 = MIN * MIN;
+    for (let i = 0; i < n; i++) {
+      const a = zs[i]; if (!a.body) continue;
+      for (let j = i + 1; j < n; j++) {
+        const b = zs[j]; if (!b.body) continue;
+        let dx = a.body.position.x - b.body.position.x;
+        let dz = a.body.position.z - b.body.position.z;
+        let d2 = dx * dx + dz * dz;
+        if (d2 >= MIN2) continue;
+        if (d2 < 1e-4) { dx = (Math.sin(i * 12.9) ); dz = (Math.cos(j * 78.2)); d2 = dx*dx+dz*dz || 1; }
+        const d = Math.sqrt(d2);
+        const push = (MIN - d) * 0.25; // gentle — separates over a few frames
+        const nx = dx / d, nz = dz / d;
+        a.body.position.x += nx * push; a.body.position.z += nz * push;
+        b.body.position.x -= nx * push; b.body.position.z -= nz * push;
+      }
     }
   }
 

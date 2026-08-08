@@ -353,19 +353,45 @@ export class ZombieBase {
 
     this.checkAttack(player, distToPlayer);
 
-    if (this.state !== 'idle' && this.mesh) {
-      this._walkTime += deltaTime * Math.min(this.speed, 4) * 2.0;
-      const swing = Math.sin(this._walkTime) * 0.5;
-      // Limbs swing around their base pose (shoulders keep the zombie reach)
-      if (this._leftArm)  this._leftArm.rotation.x  = (this._leftArm.userData?.baseRotX ?? 0) + swing * 0.3;
-      if (this._rightArm) this._rightArm.rotation.x = (this._rightArm.userData?.baseRotX ?? 0) - swing * 0.3;
-      if (this._leftLeg)  this._leftLeg.rotation.x  = (this._leftLeg.userData?.baseRotX ?? 0) - swing * 0.85;
-      if (this._rightLeg) this._rightLeg.rotation.x = (this._rightLeg.userData?.baseRotX ?? 0) + swing * 0.85;
-      // Shambling lurch: torso rolls side to side slightly with each step
-      if (this._torsoGroup) {
-        this._torsoGroup.rotation.z = Math.sin(this._walkTime * 0.5) * 0.07;
-        this._torsoGroup.rotation.x = (this._torsoBaseRotX ?? 0) + Math.abs(Math.cos(this._walkTime)) * 0.04;
+    if (this.mesh) this._animate(deltaTime);
+  }
+
+  // Skeletal animation. Zombies always move a little — even standing idle they
+  // breathe and sway, so they never look like frozen mannequins.
+  _animate(deltaTime) {
+    const lArm = this._leftArm, rArm = this._rightArm;
+    const lLeg = this._leftLeg, rLeg = this._rightLeg, torso = this._torsoGroup;
+    const laB = lArm?.userData?.baseRotX ?? 0, raB = rArm?.userData?.baseRotX ?? 0;
+    const llB = lLeg?.userData?.baseRotX ?? 0, rlB = rLeg?.userData?.baseRotX ?? 0;
+    const tB  = this._torsoBaseRotX ?? 0;
+
+    if (this.state === 'idle') {
+      // Subtle breathing + weight shift so an idle zombie still reads as "alive"
+      this._idleTime = (this._idleTime ?? Math.random() * 7) + deltaTime;
+      const t = this._idleTime;
+      const breathe = Math.sin(t * 1.1);
+      const sway = Math.sin(t * 0.7);
+      if (lArm) lArm.rotation.x = laB + breathe * 0.05;
+      if (rArm) rArm.rotation.x = raB - breathe * 0.05;
+      if (lLeg) lLeg.rotation.x = llB;
+      if (rLeg) rLeg.rotation.x = rlB;
+      if (torso) {
+        torso.rotation.z = sway * 0.035;
+        torso.rotation.x = tB + breathe * 0.03;
       }
+      return;
+    }
+
+    // Walking / attacking: alternating gait with a shambling lurch
+    this._walkTime += deltaTime * Math.min(this.speed, 4) * 2.0;
+    const swing = Math.sin(this._walkTime);
+    if (lArm) lArm.rotation.x = laB + swing * 0.32;
+    if (rArm) rArm.rotation.x = raB - swing * 0.32;
+    if (lLeg) lLeg.rotation.x = llB - swing * 0.85;
+    if (rLeg) rLeg.rotation.x = rlB + swing * 0.85;
+    if (torso) {
+      torso.rotation.z = Math.sin(this._walkTime * 0.5) * 0.08;
+      torso.rotation.x = tB + Math.abs(Math.cos(this._walkTime)) * 0.05;
     }
   }
 
@@ -599,6 +625,14 @@ export class ZombieBase {
       // Billboard: copy camera quaternion so bar always faces player
       const camera = this.game.scene.getCamera();
       this.healthBarGroup.quaternion.copy(camera.quaternion);
+
+      // Shrink the bar when the zombie is close so a point-blank attacker's bar
+      // doesn't balloon into a giant slab across the screen. Natural size at range.
+      const camDist = camera.position.distanceTo(this.healthBarGroup.position);
+      const barScale = Math.min(1, Math.max(0.22, camDist / 6.5));
+      this.healthBarGroup.scale.setScalar(barScale);
+      // Hide entirely at full health until first damaged (less HUD clutter)
+      this.healthBarGroup.visible = camDist < 45 && this.health < this.maxHealth;
 
       // Scale foreground to show current health ratio
       const ratio = Math.max(0, Math.min(1, this.health / this.maxHealth));
