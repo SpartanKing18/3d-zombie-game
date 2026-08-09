@@ -31,6 +31,11 @@ export class FriendsHouse {
     this.physicsWorld = game.physicsWorld;
     this.objects     = [];
     this.physBodies  = [];
+    // Exterior shell (walls/roof/ground/lawn) is tracked separately so exitHouse()
+    // can keep it — otherwise the whole house vanishes the moment you step out.
+    this.exteriorObjects = [];
+    this.exteriorBodies  = [];
+    this._exteriorMode   = false;   // when true, add()/phys() route to the exterior lists
     this.doors       = [];          // walk-through door pivots (new system)
     this.currentRoom = 'attic';     // kept for backward compat
 
@@ -137,13 +142,13 @@ export class FriendsHouse {
 
   add(mesh) {
     this.scene.add(mesh);
-    this.objects.push(mesh);
+    (this._exteriorMode ? this.exteriorObjects : this.objects).push(mesh);
     return mesh;
   }
 
   addLight(light) {
     this.scene.add(light);
-    this.objects.push(light);
+    (this._exteriorMode ? this.exteriorObjects : this.objects).push(light);
   }
 
   box(w, h, d, color, rough = 0.85, metal = 0.05) {
@@ -163,7 +168,7 @@ export class FriendsHouse {
     body.addShape(shape);
     body.position.set(x, y, z);
     this.physicsWorld.addBody(body);
-    this.physBodies.push(body);
+    (this._exteriorMode ? this.exteriorBodies : this.physBodies).push(body);
     return body;
   }
 
@@ -480,19 +485,31 @@ export class FriendsHouse {
     this._woodTex    = this._makeProcTex('wood',    256);
     this._tileTex    = this._makeProcTex('tile',    256);
 
+    // The raised green foundation is INTERIOR — removed on exit so the real
+    // terrain/neighborhood/zombies (at y=0) show without the house sitting 0.5
+    // above them. The shell (walls/roof/lawn) is kept and dropped onto terrain.
     this._buildGround();
-    this._buildFloor();
+
+    // Exterior shell (kept when you exit) vs interior (removed on exit).
+    this._exteriorMode = true;
     this._buildExteriorWalls();
+    this._buildAtticBox();          // roof
+    this._exteriorMode = false;
+
+    this._buildFloor();
     this._buildInteriorWalls();
     this._buildCeilings();
-    this._buildAtticBox();
     this._buildLighting();
     this._buildLivingRoomFurniture();
     this._buildKitchenFurniture();
     this._buildMasterBedroomFurniture();
     this._buildBedroom2Furniture();
     this._buildBathroomFurniture();
+
+    this._exteriorMode = true;
     this._buildLawn();
+    this._exteriorMode = false;
+
     this._buildCurtains();
     this._buildBaseboards();
   }
@@ -3068,8 +3085,8 @@ export class FriendsHouse {
 
   // ─── Cleanup ─────────────────────────────────────────────────────────────────
 
-  clearAll() {
-    this.objects.forEach(obj => {
+  _disposeObjects(list) {
+    list.forEach(obj => {
       this.scene.remove(obj);
       if (obj.geometry) obj.geometry.dispose();
       if (obj.material) {
@@ -3077,12 +3094,32 @@ export class FriendsHouse {
         else obj.material.dispose();
       }
     });
-    this.objects = [];
+  }
 
-    this.physBodies.forEach(body => {
+  _disposeBodies(list) {
+    list.forEach(body => {
       if (body !== this.game.player?.body) this.physicsWorld.removeBody(body);
     });
+  }
+
+  // Remove only the interior (furniture, interior walls, floor, doors, lights).
+  // The exterior shell + yard stay so the house is still there after you exit.
+  // Procedural textures are kept — the retained exterior walls still use them.
+  clearInterior() {
+    this._disposeObjects(this.objects);
+    this.objects = [];
+    this._disposeBodies(this.physBodies);
     this.physBodies = [];
+    this.doors = [];
+  }
+
+  clearAll() {
+    this.clearInterior();
+    // Also tear down the exterior shell (used when rebuilding / restarting).
+    this._disposeObjects(this.exteriorObjects);
+    this.exteriorObjects = [];
+    this._disposeBodies(this.exteriorBodies);
+    this.exteriorBodies = [];
 
     // Dispose procedural textures
     if (this._procTextures) {
@@ -3093,8 +3130,6 @@ export class FriendsHouse {
     this._extWallTex = null;
     this._woodTex = null;
     this._tileTex = null;
-
-    this.doors = [];
   }
 
   // ─── Exit to outside world ───────────────────────────────────────────────────
@@ -3156,10 +3191,23 @@ export class FriendsHouse {
     // If preload hasn't finished yet (player rushed the door), finish it now
     if (!this._outdoorTerrainReady) this.preloadOutdoorTerrain();
 
-    // Remove the house interior — outdoor terrain is already in the world
-    this.clearAll();
+    // Remove only the interior — the exterior shell (walls/roof/lawn) stays, so
+    // the house is still standing behind you when you step out (no vanish).
+    this.clearInterior();
+
+    // The shell was built on the raised FLOOR_Y foundation (base at y=0.5); the
+    // foundation is now gone, so drop the whole shell FLOOR_Y down to rest on the
+    // outdoor terrain (y=0) — otherwise it would float half a metre in the air.
+    for (const o of this.exteriorObjects) o.position.y -= FLOOR_Y;
+    for (const b of this.exteriorBodies) { b.position.y -= FLOOR_Y; }
+
     this.game.worldItemSystem?.removeAll();
     this.game.inFriendHouse = false;
+
+    // Hide the door/interaction prompt — handleDoorInteraction stops running once
+    // we leave the house, so it would otherwise stay stuck on screen after exit.
+    const prompt = document.getElementById('interact-prompt');
+    if (prompt) prompt.style.display = 'none';
 
     // Player stays exactly where they are — no position change, no Y snap.
     // Physics drops them the small gap onto outdoor terrain naturally.

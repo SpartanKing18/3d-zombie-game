@@ -161,9 +161,9 @@ export class FurnitureGenerator {
     const model = this.game.furnitureModelLoader?.createModel?.(type);
     if (model) {
       group.add(model);
-      // Callers pass y as the procedural mesh CENTRE (base = y-0.5 = floor). The
-      // model is ground-aligned (base at 0), so drop it 0.5 to rest on the floor.
-      group.position.set(x, y - 0.5, z);
+      // Procedural furniture builders put their base at local y=0 and are placed
+      // at y (the floor), so the ground-aligned model uses the same y — no offset.
+      group.position.set(x, y, z);
       this.game.scene.addObject(group);
       this.furniture.push({ mesh: group, type, position: { x, y, z } });
       return;
