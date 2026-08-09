@@ -569,7 +569,7 @@ export class Player {
 
     // Update flashlight to follow camera
     if (this._flashlight) {
-      this._flashlight.intensity = this.flashlightOn ? 3.2 : 0;
+      this._flashlight.intensity = this.flashlightOn ? 6.0 : 0; // brighter for the dark, foggy nights
       if (this.flashlightOn) {
         this.camera.getWorldDirection(this._flashFwd);
         this._flashlight.position.copy(this.camera.position).addScaledVector(this._flashOffset, 1);

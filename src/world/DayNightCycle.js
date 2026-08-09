@@ -97,20 +97,21 @@ export class DayNightCycle {
       this._moonLight.intensity = Math.max(0, -sunElevation) * 0.4;
     }
 
-    // Fog: thin blue-grey at day, thick blue-black at night
+    // Fog: heavy, dread-inducing haze — moderate by day, thick and near-black at
+    // night so visibility is limited and things loom out of the murk.
     if (this.scene.fog) {
-      const dayFog   = 0.00055;
-      const nightFog = 0.0028;
+      const dayFog   = 0.005;
+      const nightFog = 0.0105;
       const fogT = Math.max(0, -sunElevation);  // 0 at day, 1 at midnight
       this.scene.fog.density = dayFog + (nightFog - dayFog) * fogT;
-      // Fog color tracks sky horizon
+      // Fog color: desaturated grey-teal, going nearly black at night
       if (sunElevation > 0.1) {
-        this.scene.fog.color.set(0x8aadcc);
+        this.scene.fog.color.set(0x545e5a);
       } else if (sunElevation > -0.1) {
         const t = (sunElevation + 0.1) / 0.2;
-        this.scene.fog.color.setHex(t > 0.5 ? 0xee8833 : 0x1a2a40);
+        this.scene.fog.color.setHex(t > 0.5 ? 0x3a3630 : 0x121a1c);
       } else {
-        this.scene.fog.color.set(0x0a0f1a);
+        this.scene.fog.color.set(0x060a0b);
       }
     }
 

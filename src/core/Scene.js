@@ -1,5 +1,53 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+
+// Horror colour-grade: chromatic aberration, drained desaturation, cold sickly
+// tint, crushed blacks, heavy vignette, and animated film grain. Turns the bright
+// "game" render into a dark, dread-soaked, filmic image.
+const HorrorGradeShader = {
+  uniforms: {
+    tDiffuse:    { value: null },
+    uTime:       { value: 0 },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uVignette:   { value: 1.2 },
+    uGrain:      { value: 0.055 },
+    uDesat:      { value: 0.42 },
+    uAberration: { value: 0.0014 },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uTime; uniform vec2 uResolution;
+    uniform float uVignette, uGrain, uDesat, uAberration;
+    varying vec2 vUv;
+    float hash(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p,p+45.32); return fract(p.x*p.y); }
+    void main(){
+      vec2 uv = vUv;
+      vec2 d = uv - 0.5;
+      float r2 = dot(d,d);
+      float ab = uAberration * (0.3 + r2*3.0);
+      vec3 col;
+      col.r = texture2D(tDiffuse, uv + d*ab).r;
+      col.g = texture2D(tDiffuse, uv).g;
+      col.b = texture2D(tDiffuse, uv - d*ab).b;
+      float lum = dot(col, vec3(0.299,0.587,0.114));
+      col = mix(col, vec3(lum), uDesat);        // drain colour
+      col *= vec3(0.9, 1.0, 0.95);              // cold sickly tint
+      col = (col - 0.5) * 1.08 + 0.5;           // contrast
+      col = max(col - 0.015, 0.0);              // crush blacks
+      float vig = smoothstep(0.95, 0.12, r2*uVignette);
+      col *= mix(0.32, 1.0, vig);               // vignette darkening
+      float g = hash(uv*uResolution*0.5 + fract(uTime)*vec2(53.0,71.0));
+      col += (g - 0.5) * uGrain;                // animated grain
+      gl_FragColor = vec4(max(col,0.0), 1.0);
+    }
+  `
+};
 
 export class Scene {
   constructor() {
@@ -19,6 +67,38 @@ export class Scene {
     this.setupLights();
     this.setupClouds();
     this.setupEventListeners();
+    this.setupPostProcessing();
+  }
+
+  // Cinematic horror post-processing pipeline.
+  setupPostProcessing() {
+    try {
+      const composer = new EffectComposer(this.renderer);
+      composer.addPass(new RenderPass(this.scene, this.camera));
+
+      // Subtle HDR bloom — makes glowing zombie eyes, lamp heads and muzzle flash
+      // glow in the dark without washing the whole frame (high threshold).
+      const bloom = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), 0.55, 0.7, 0.85);
+      composer.addPass(bloom); this._bloom = bloom;
+
+      const grade = new ShaderPass(HorrorGradeShader);
+      grade.uniforms.uResolution.value.set(this.width, this.height);
+      composer.addPass(grade); this._grade = grade;
+
+      composer.addPass(new OutputPass()); // tone map + sRGB after the linear passes
+
+      const fxaa = new ShaderPass(FXAAShader);
+      fxaa.material.uniforms.resolution.value.set(1 / this.width, 1 / this.height);
+      composer.addPass(fxaa); this._fxaa = fxaa;
+
+      composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      composer.setSize(this.width, this.height);
+      this.composer = composer;
+      this._usePost = true;
+    } catch (e) {
+      console.warn('[Scene] post-processing unavailable:', e?.message);
+      this._usePost = false;
+    }
   }
 
   // Image-based lighting: a one-time PMREM from a neutral room, assigned as
@@ -54,7 +134,7 @@ export class Scene {
     this.renderer.shadowMap.autoUpdate = true;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = 0.85; // slightly darker, moodier base
     this.renderer.setClearColor(0x000000, 1);
     this.scene.fog = new THREE.FogExp2(0x8aadcc, 0.0005);
   }
@@ -467,13 +547,24 @@ export class Scene {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.width, this.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    if (this.composer) {
+      this.composer.setSize(this.width, this.height);
+      this._grade?.uniforms.uResolution.value.set(this.width, this.height);
+      this._fxaa?.material.uniforms.resolution.value.set(1 / this.width, 1 / this.height);
+      this._bloom?.setSize(this.width, this.height);
+    }
   }
 
   addObject(object) { this.scene.add(object); }
   removeObject(object) { this.scene.remove(object); }
 
   render() {
-    this.renderer.render(this.scene, this.camera);
+    if (this._usePost && this.composer) {
+      if (this._grade) this._grade.uniforms.uTime.value = performance.now() / 1000;
+      this.composer.render();
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   getSkyColor() {
