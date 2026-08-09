@@ -36,7 +36,7 @@ import { MissionSystem } from '../systems/MissionSystem.js';
 import { FriendsHouse } from '../environments/FriendsHouse.js';
 import { ParticleSystem } from '../systems/ParticleSystem.js';
 import { WorldItemSystem } from '../systems/WorldItemSystem.js';
-import { ItemModelLoader } from '../systems/ItemModelLoader.js';
+import { ModelRegistry } from '../systems/ModelRegistry.js';
 import { AchievementSystem } from '../systems/AchievementSystem.js';
 
 export class Game {
@@ -90,7 +90,14 @@ export class Game {
     // Start loading the optional external zombie model before any zombie spawns.
     // Zombies fall back to the procedural body until (and unless) it's ready.
     this.zombieModelLoader = new ZombieModelLoader();
-    this.itemModelLoader = new ItemModelLoader();
+    // Small pickups: fit each to ~0.42 m; furniture: uniform 2.2× (Kenney units→m), grounded.
+    this.itemModelLoader = new ModelRegistry({ label: 'ItemModels' });
+    this.furnitureModelLoader = new ModelRegistry({
+      label: 'FurnitureModels',
+      manifestUrl: '/models/furniture/manifest.json',
+      dir: '/models/furniture/',
+      fit: null, scale: 2.2, ground: true,
+    });
 
     this.player = new Player(this);
     this.zombieManager = new ZombieManager(this);

@@ -152,6 +152,16 @@ export class FurnitureGenerator {
     let mesh = null;
     const group = new THREE.Group();
 
+    // Use a downloaded furniture model if one is registered for this type.
+    const model = this.game.furnitureModelLoader?.createModel?.(type);
+    if (model) {
+      group.add(model);
+      group.position.set(x, y, z);
+      this.game.scene.addObject(group);
+      this.furniture.push({ mesh: group, type, position: { x, y, z } });
+      return;
+    }
+
     switch (type) {
       case 'table':
         mesh = this.createTable();
