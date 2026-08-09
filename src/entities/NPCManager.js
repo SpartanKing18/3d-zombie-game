@@ -21,7 +21,11 @@ export class NPCManager {
   }
 
   spawnOutdoorNPCs(centerX = 0, centerZ = 40) {
-    if (this.npcs.length > 0) return; // already spawned
+    // Guard synchronously: NPCs are pushed to this.npcs inside staggered setTimeouts
+    // that fire up to ~2.7s later, so a second call within that window would slip
+    // past a `this.npcs.length` check and spawn a duplicate 10-NPC settlement.
+    if (this._spawnStarted || this.npcs.length > 0) return;
+    this._spawnStarted = true;
 
     // Settlement is at a fixed world location 250 units in front of the house
     // — far enough that the player never sees them on exit, must walk there

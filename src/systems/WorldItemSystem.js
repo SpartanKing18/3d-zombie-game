@@ -796,8 +796,12 @@ export class WorldItemSystem {
     // Rarity glow for uncommon+ items — an unlit halo mesh, NOT a PointLight:
     // hundreds of dropped items each carrying a real light breaks the renderer
     if (glow.intensity > 0.12) {
+      // Share one halo geometry across all drops so it never needs per-item
+      // disposal (item disposal only frees materials, so a fresh geometry per
+      // halo would leak on every rare drop).
+      if (!this._haloGeo) this._haloGeo = new THREE.SphereGeometry(0.22, 8, 6);
       const halo = new THREE.Mesh(
-        new THREE.SphereGeometry(0.22, 8, 6),
+        this._haloGeo,
         new THREE.MeshBasicMaterial({
           color: glow.color, transparent: true,
           opacity: Math.min(0.4, glow.intensity * 0.9),
@@ -811,9 +815,9 @@ export class WorldItemSystem {
 
     this.scene.add(group);
 
-    // Collect all materials from the model for proper disposal
+    // Collect all materials from the whole group (incl. the halo) for disposal.
     const matSet = new Set();
-    model.traverse(o => { if (o.isMesh) matSet.add(o.material); });
+    group.traverse(o => { if (o.isMesh) matSet.add(o.material); });
     const mats = [...matSet];
 
     const item = {

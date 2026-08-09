@@ -292,14 +292,11 @@ export class MutantGiant extends ZombieBase {
     if (this._tremorTimer <= 0 && this.state === 'chasing') {
       this._tremorTimer = 2.0;
       if (!this.game._noiseEvents) this.game._noiseEvents = [];
-      const ev = { x: this.position.x, z: this.position.z, radius: 15 };
-      this.game._noiseEvents.push(ev);
-      setTimeout(() => {
-        if (this.game._noiseEvents) {
-          const idx = this.game._noiseEvents.indexOf(ev);
-          if (idx !== -1) this.game._noiseEvents.splice(idx, 1);
-        }
-      }, 300);
+      // Must include ttl — Game.update expires events via `e.ttl -= dt`. Without it,
+      // `NaN > 0` is false so the event was dropped the very next frame. (The old
+      // setTimeout cleanup was also dead: Game rebuilds _noiseEvents into a new array
+      // each frame, so indexOf ran against a stale reference.)
+      this.game._noiseEvents.push({ x: this.position.x, z: this.position.z, radius: 15, ttl: 0.3 });
 
       // Minor camera shake for player if nearby
       const player = this.game.player;

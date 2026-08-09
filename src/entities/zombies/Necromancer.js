@@ -398,9 +398,12 @@ export class Necromancer extends ZombieBase {
   die() {
     if (this._dead) return;
 
-    // Remove shield
-    if (this._shieldMesh && this.mesh) {
-      this.mesh.remove(this._shieldMesh);
+    // Remove shield — dispose its geometry/material, otherwise detaching it from
+    // the mesh here means base disposal never reaches it (one sphere leaked/death).
+    if (this._shieldMesh) {
+      if (this.mesh) this.mesh.remove(this._shieldMesh);
+      this._shieldMesh.geometry?.dispose?.();
+      this._shieldMesh.material?.dispose?.();
       this._shieldMesh = null;
     }
 

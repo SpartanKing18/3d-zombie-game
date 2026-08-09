@@ -70,6 +70,7 @@ export class TreeGenerator {
 
     this.game.scene.addObject(group);
     this.trees.push({ x, z, y: groundY, biome, mesh: group });
+    return group; // NeighborhoodBuilder tracks the returned group for disposal
   }
 
   // ─── Tree types ─────────────────────────────────────────────────────────────

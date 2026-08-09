@@ -217,11 +217,15 @@ export class Player {
     this.updateCamera();
     this.updateHUD();
 
-    // Damage vignette countdown
+    // Damage vignette countdown — ease-out (squared) so it snaps in and falls off
+    // faster than a flat linear fade, giving the hit more punch.
     if (this._damageFlash > 0) {
       this._damageFlash -= deltaTime;
-      const el = document.getElementById('damage-vignette');
-      if (el) el.style.opacity = Math.max(0, this._damageFlash / 0.5).toFixed(3);
+      if (!this._dmgVignetteEl) this._dmgVignetteEl = document.getElementById('damage-vignette');
+      if (this._dmgVignetteEl) {
+        const f = Math.max(0, this._damageFlash / 0.5);
+        this._dmgVignetteEl.style.opacity = (f * f).toFixed(3);
+      }
     }
 
     // Status effects

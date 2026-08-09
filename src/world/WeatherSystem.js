@@ -38,19 +38,27 @@ export class WeatherSystem {
     }
   }
 
+  // Dispose rain GPU buffers before dropping the reference (avoids leaking the
+  // 2500-segment geometry + material every time the auto-weather cycle rebuilds).
+  _disposeRain() {
+    if (!this.rainParticles) return;
+    this.scene.remove(this.rainParticles);
+    this.rainParticles.geometry?.dispose?.();
+    this.rainParticles.material?.dispose?.();
+    this.rainParticles = null;
+  }
+
   setClear() {
-    if (this.rainParticles) {
-      this.scene.remove(this.rainParticles);
-      this.rainParticles = null;
-    }
-    this.scene.fog = null;
+    this._disposeRain();
+    // NOTE: never null or replace scene.fog — DayNightCycle owns the persistent
+    // FogExp2 and _applyWeatherFog() modulates it. Nulling it here used to delete
+    // the atmospheric fog for the rest of the session.
     this._updateWeatherHUD();
   }
 
   setRain() {
-    if (this.rainParticles) {
-      this.scene.remove(this.rainParticles);
-    }
+    this._disposeRain();
+    this._weatherFogColorHex = 0x8a9aa8;
 
     // Line-segment rain streaks — far more realistic than round points
     const dropCount = 2500;
@@ -90,22 +98,18 @@ export class WeatherSystem {
 
     this.scene.add(this.rainParticles);
 
-    this.scene.fog = new THREE.Fog(0x889aaa, 80, 420);
     if (this.weather === 'rain') this._updateWeatherHUD();
   }
 
   setFog() {
-    if (this.rainParticles) {
-      this.scene.remove(this.rainParticles);
-      this.rainParticles = null;
-    }
-    this.scene.fog = new THREE.Fog(0xcccccc, 50, 150);
+    this._disposeRain();
+    this._weatherFogColorHex = 0x9aa4a8;
     this._updateWeatherHUD();
   }
 
   setStorm() {
     this.setRain();
-    this.scene.fog = new THREE.Fog(0x445566, 15, 150);
+    this._weatherFogColorHex = 0x3a4652;
     this._updateWeatherHUD();
   }
 
@@ -193,6 +197,30 @@ export class WeatherSystem {
     const targetStorm = this.weather === 'storm' ? 1.0 : 0.0;
     this._stormShaderVal = THREE.MathUtils.lerp(this._stormShaderVal ?? 0, targetStorm, deltaTime * 0.5);
     this.game.scene?.setStormStrength?.(this._stormShaderVal);
+
+    // Modulate the persistent day/night fog for weather (runs AFTER DayNightCycle).
+    this._applyWeatherFog(deltaTime);
+  }
+
+  // Weather adds thickness on top of DayNightCycle's base FogExp2 rather than
+  // replacing the fog object. The added density lerps in/out so transitions to
+  // and from clear weather never pop, and the fog is never destroyed.
+  _applyWeatherFog(deltaTime) {
+    const fog = this.scene.fog;
+    if (!fog || !fog.isFogExp2) return;
+    const want = this.weather === 'storm' ? 0.024
+               : this.weather === 'fog'   ? 0.020
+               : this.weather === 'rain'  ? 0.009
+               : 0.0;
+    this._weatherDens = THREE.MathUtils.lerp(this._weatherDens ?? 0, want, Math.min(1, deltaTime * 0.5));
+    if (this._weatherDens < 0.0004) return; // effectively clear — day/night owns fog
+    fog.density += this._weatherDens;
+    // Tint toward the weather colour, fading with the added density.
+    if (this._weatherFogColorHex != null) {
+      if (!this._tmpFogCol) this._tmpFogCol = new THREE.Color();
+      this._tmpFogCol.setHex(this._weatherFogColorHex);
+      fog.color.lerp(this._tmpFogCol, Math.min(0.8, this._weatherDens / 0.02 * 0.8));
+    }
   }
 
   _updateRainFog(intensity) {
@@ -250,12 +278,17 @@ export class WeatherSystem {
       setTimeout(() => { el.style.background = 'rgba(200,220,255,0)'; }, 40);
     }, 120);
 
-    // Boost sunlight briefly to simulate lightning
-    const sun = this.game.scene?.sunLight;
-    if (sun) {
-      const origInt = sun.intensity;
-      sun.intensity = 8.0;
-      setTimeout(() => { sun.intensity = origInt; }, 60);
+    // Flash the 3D scene by spiking tone-mapping exposure. Boosting the sun does
+    // nothing at night (it's parked below the horizon), and hemisphere intensity
+    // is rewritten every frame by DayNightCycle — exposure is the one lever that
+    // actually brightens the rendered geometry for the flash and isn't clobbered.
+    const renderer = this.game.renderer;
+    if (renderer && renderer.toneMappingExposure !== undefined) {
+      if (this._origExposure === undefined) this._origExposure = renderer.toneMappingExposure;
+      const base = this._origExposure;
+      renderer.toneMappingExposure = base * 2.4;
+      setTimeout(() => { renderer.toneMappingExposure = base * 1.6; }, 55);
+      setTimeout(() => { renderer.toneMappingExposure = base; }, 130);
     }
 
     // Play thunder sound after brief delay (sound travels slower than light)

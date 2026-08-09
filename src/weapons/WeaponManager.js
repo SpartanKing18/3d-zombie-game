@@ -134,8 +134,8 @@ export class WeaponManager {
       ammo_762:          ['Assault Rifle'],
       ammo_308:          ['Sniper Rifle'],
       ammo_50cal:        ['Sniper Rifle'],
-      ammo_12gauge_buck: ['Shotgun'],
-      ammo_12gauge_slug: ['Shotgun'],
+      ammo_12gauge_buck: ['Shotgun', 'Sawed-Off'],
+      ammo_12gauge_slug: ['Shotgun', 'Sawed-Off'],
       ammo_pistol:       ['Pistol'],
       ammo_rifle:        ['Assault Rifle'],
     };

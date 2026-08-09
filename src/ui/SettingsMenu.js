@@ -160,7 +160,6 @@ export class SettingsMenu {
         label.insertBefore(input, label.firstChild);
       } else if (setting.type === 'select') {
         const select = document.createElement('select');
-        select.value = value || setting.options[0];
 
         setting.options.forEach(opt => {
           const option = document.createElement('option');
@@ -168,6 +167,9 @@ export class SettingsMenu {
           option.textContent = opt.charAt(0).toUpperCase() + opt.slice(1);
           select.appendChild(option);
         });
+        // Set the current value AFTER options exist, or it silently no-ops and the
+        // dropdown always shows the first option regardless of the saved setting.
+        select.value = value || setting.options[0];
 
         select.addEventListener('change', (e) => {
           this.game.settings.set(setting.key, e.target.value);

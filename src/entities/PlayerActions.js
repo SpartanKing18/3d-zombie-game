@@ -38,6 +38,7 @@ export class PlayerActions {
     this.lastActionTime[actionName] = now;
 
     const player = this.game.player;
+    if (!player) return; // action key pressed before the player exists
     const playerPos = player.getPosition();
     const direction = new THREE.Vector3();
     this.game.scene.getCamera().getWorldDirection(direction);

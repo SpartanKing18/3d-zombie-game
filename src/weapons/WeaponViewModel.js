@@ -27,6 +27,13 @@ export class WeaponViewModel {
     this._hipPos = new THREE.Vector3();
     this._aimPos = new THREE.Vector3();
 
+    // One reusable point light pulsed on each shot so gunfire actually lights
+    // nearby zombies/walls at night (the billboard flash alone emits no light).
+    this._muzzleLight = new THREE.PointLight(0xffaa55, 0, 12, 2.0);
+    this._muzzleLight.castShadow = false;
+    this._muzzleLight.visible = false;
+    this.root.add(this._muzzleLight);
+
     // Slight emissive keeps the weapon readable even in dark scenes
     this._mkMat = (color, metalness = 0.6, roughness = 0.45) =>
       new THREE.MeshStandardMaterial({
@@ -207,15 +214,25 @@ export class WeaponViewModel {
     // Muzzle flash decay + random flicker
     if (this._muzzleTimer > 0) {
       this._muzzleTimer -= dt;
+      const frac = Math.max(0, this._muzzleTimer / 0.05);
       if (this._muzzle) {
         this._muzzle.visible = true;
-        this._muzzle.material.opacity = Math.max(0, this._muzzleTimer / 0.05) * (0.7 + Math.random() * 0.3);
+        this._muzzle.material.opacity = frac * (0.7 + Math.random() * 0.3);
         this._muzzle.rotation.z = Math.random() * Math.PI;
         const s = 0.8 + Math.random() * 0.6;
         this._muzzle.scale.set(s, s, s);
       }
-    } else if (this._muzzle && this._muzzle.visible) {
-      this._muzzle.visible = false;
+      if (this._muzzleLight) {
+        this._muzzleLight.visible = true;
+        this._muzzleLight.position.set(0.1, 0.01, (this._muzzleZ ?? -0.3) - 0.15);
+        this._muzzleLight.intensity = frac * 5.5 * (0.7 + Math.random() * 0.4);
+      }
+    } else {
+      if (this._muzzle && this._muzzle.visible) this._muzzle.visible = false;
+      if (this._muzzleLight && this._muzzleLight.visible) {
+        this._muzzleLight.visible = false;
+        this._muzzleLight.intensity = 0;
+      }
     }
   }
 

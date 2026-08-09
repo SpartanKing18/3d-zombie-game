@@ -184,6 +184,16 @@ export class Spitter extends ZombieBase {
       p.mesh.material.dispose();
     });
     this._projectiles = [];
+    // Puddles were leaking: once the Spitter is removed its update() never runs
+    // again, so _updateAcidPuddles never disposes them.
+    if (this._acidPuddles) {
+      this._acidPuddles.forEach(p => {
+        this.game.scene.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
+      });
+      this._acidPuddles = [];
+    }
     super.die();
   }
 }

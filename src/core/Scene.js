@@ -77,15 +77,20 @@ export class Scene {
       composer.addPass(new RenderPass(this.scene, this.camera));
 
       // Subtle HDR bloom — makes glowing zombie eyes, lamp heads and muzzle flash
-      // glow in the dark without washing the whole frame (high threshold).
-      const bloom = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), 0.55, 0.7, 0.85);
+      // glow in the dark. Threshold lowered from 0.85 so mid-tone emissives
+      // (eyes ~0.7–1.5 intensity) actually cross it after ACES + 0.85 exposure.
+      const bloom = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), 0.55, 0.7, 0.62);
       composer.addPass(bloom); this._bloom = bloom;
+
+      // Tone-map + sRGB BEFORE the horror grade so the grade's contrast/black-crush/
+      // vignette/grain operate on display-referred pixels (0–1), not linear HDR
+      // values >1 where those constants behave nonlinearly and get lifted back up
+      // by a later tone-map.
+      composer.addPass(new OutputPass());
 
       const grade = new ShaderPass(HorrorGradeShader);
       grade.uniforms.uResolution.value.set(this.width, this.height);
       composer.addPass(grade); this._grade = grade;
-
-      composer.addPass(new OutputPass()); // tone map + sRGB after the linear passes
 
       const fxaa = new ShaderPass(FXAAShader);
       fxaa.material.uniforms.resolution.value.set(1 / this.width, 1 / this.height);
