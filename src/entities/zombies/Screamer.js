@@ -91,11 +91,17 @@ export class Screamer extends ZombieBase {
       if (dist < this.screamRange && zombie !== this) {
         zombie.state = 'chasing';
         zombie.pathRecalcTimer = 0;
-        // Brief speed boost to alerted zombies
-        if (zombie.speed < 6) {
-          const orig = zombie.speed;
+        // Brief speed boost to alerted zombies.
+        // Guard with a flag so a second scream within the 4s window doesn't capture
+        // the already-boosted speed as the "base" (which would make it permanent).
+        if (!zombie._screamBoosted && zombie.speed < 6) {
+          zombie._screamBaseSpeed = zombie.speed;
           zombie.speed *= 1.4;
-          setTimeout(() => { zombie.speed = orig; }, 4000);
+          zombie._screamBoosted = true;
+          setTimeout(() => {
+            if (zombie._screamBaseSpeed !== undefined) zombie.speed = zombie._screamBaseSpeed;
+            zombie._screamBoosted = false;
+          }, 4000);
         }
       }
     });

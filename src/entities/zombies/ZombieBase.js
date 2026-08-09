@@ -756,8 +756,10 @@ export class ZombieBase {
   }
 
   takeDamage(amount, isHeadshot = false) {
+    // HordeMaster aura grants nearby zombies a damage-reduction buff (_dmgReduction).
+    const mitigated = amount * (1 - (this._dmgReduction ?? 0));
     // Headshot: 2.5x damage and instant stagger
-    const finalAmount = isHeadshot ? amount * 2.5 : amount;
+    const finalAmount = isHeadshot ? mitigated * 2.5 : mitigated;
     this.health -= finalAmount;
 
     if (isHeadshot && this.game.triggerHitmarker) {

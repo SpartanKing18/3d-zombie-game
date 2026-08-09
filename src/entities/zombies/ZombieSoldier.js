@@ -314,28 +314,20 @@ export class ZombieSoldier extends ZombieBase {
       this.game._raycastTargets = targets;
       this.game._raycastTargetTime = now;
     }
-    if (player.mesh && !this.game._raycastTargets.includes(player.mesh)) {
-      this.game._raycastTargets.push(player.mesh);
-    }
-
     const hits = this._soldierRay.intersectObjects(this.game._raycastTargets, true);
 
-    let hitPlayer = false;
-    if (hits.length > 0) {
-      // Check if the closest hit belongs to the player
-      const closest = hits[0];
-      let obj = closest.object;
-      while (obj) {
-        if (obj === player.mesh || obj.userData?.isPlayer) {
-          hitPlayer = true;
-          break;
-        }
-        obj = obj.parent;
-      }
-    } else {
-      // Nothing in the way — still check raw distance
-      if (distToPlayer <= this.attackRange) hitPlayer = true;
+    // The player has no scene mesh to hit directly, so treat the shot as a
+    // line-of-sight test: find the nearest obstruction that isn't this soldier's
+    // own body; the bullet reaches the player only if nothing blocks it first.
+    let blockDist = Infinity;
+    for (const h of hits) {
+      let obj = h.object, isSelf = false;
+      while (obj) { if (obj === this.mesh) { isSelf = true; break; } obj = obj.parent; }
+      if (isSelf) continue;
+      blockDist = h.distance;
+      break;
     }
+    const hitPlayer = distToPlayer <= this.attackRange && blockDist >= distToPlayer - 0.5;
 
     if (hitPlayer) {
       if (player.health - this.damage <= 0 && player.setDeathCause) {

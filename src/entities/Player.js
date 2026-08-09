@@ -254,9 +254,10 @@ export class Player {
         const isCold = isNight && !this._nearFire;
         const target = isCold ? 34.5 : 37.0;
         this.temperature += (target - this.temperature) * 0.3;
-        if (this.temperature < 35.5 && !this.godMode) {
+        if (this.temperature < 35.5 && !this.godMode && this.spawnProtectionTime <= 0) {
           this.health = Math.max(0, this.health - 0.8);
           this._deathCause = 'Hypothermia';
+          if (this.health <= 0) this.die();
         }
       } else {
         this.temperature = Math.min(37.0, this.temperature + 0.5);
@@ -291,6 +292,11 @@ export class Player {
     // Drunk timer tick (sway is applied in updateCamera via this._drunkTimer)
     if (this._drunkTimer > 0) {
       this._drunkTimer -= deltaTime;
+    }
+
+    // Phantom "fear" debuff timer — must tick down so a later backstab can re-apply it
+    if (this._fearTimer > 0) {
+      this._fearTimer -= deltaTime;
     }
 
     if (this.jumpCooldown > 0) {
@@ -381,7 +387,7 @@ export class Player {
 
     // Apply bhop speed multiplier (and encumbrance from inventory weight)
     const legMult = this._legInjury ? 0.5 : 1.0;
-    const totalMult = this._bhopMult * (this._speedBoostMult ?? 1.0) * (this._encumbrance ?? 1.0) * legMult;
+    const totalMult = this._bhopMult * (this._speedBoostMult ?? 1.0) * (this._encumbrance ?? 1.0) * legMult * (this._moveSpeedMult ?? 1.0);
     this.body.velocity.x = moveVelocity.x * totalMult;
     this.body.velocity.z = moveVelocity.z * totalMult;
 

@@ -226,8 +226,6 @@ export class Bomber extends ZombieBase {
 
   takeDamage(amount, isHeadshot = false) {
     if (this._exploded) return;
-    // If killed during priming → smaller explosion
-    const willDie = (this.health - amount) <= 0;
     super.takeDamage(amount, isHeadshot);
     // die() is called by super.takeDamage when health <= 0,
     // but we override die() to handle explosion logic
@@ -238,8 +236,9 @@ export class Bomber extends ZombieBase {
     // Prevent double explosion: only explode if not already done
     if (!this._exploded) {
       if (this._primed) {
-        // Killed while priming — partial explosion
-        this._explode(false);
+        // Killed while priming — partial explosion (reduced dmg/radius vs a full
+        // self-detonation, rewarding the player for shooting it in time).
+        this._explode(true);
       } else {
         // Killed before priming — no explosion, just die normally
         this._exploded = true; // mark so _explode is never called

@@ -278,6 +278,9 @@ export class Game {
     this.player.burned = false;
     this.player.poisoned = false;
     this.player._drunkTimer = 0;
+    this.player._fearTimer = 0;
+    this.player._moveSpeedMult = 1.0;
+    this.player.temperature = 37.0;
     this.player._killStreak = 0;
     this.player._damageFlash = 0;
     this.player.body.velocity.set(0, 0, 0);

@@ -48,6 +48,13 @@ export class WeaponBase {
     if (!this.canFire || this.isReloading) return false;
     // Skip ammo check for melee weapons (magSize <= 0 means infinite/melee)
     if (this.magSize > 0 && this.ammoInMag <= 0) return false;
+    // A broken weapon fires nothing — must be checked BEFORE the raycast/damage loop
+    // (otherwise a 0-durability weapon still deals full damage every click).
+    if (this.durability <= 0) {
+      if (!this._notifEl) this._notifEl = document.getElementById('loot-notification');
+      if (this._notifEl) { this._notifEl.textContent = `⚠ ${this.name || 'Weapon'} is broken! Needs mat_duct_tape to repair.`; this._notifEl.style.color='#ff8833'; this._notifEl.classList.remove('show'); void this._notifEl.offsetWidth; this._notifEl.classList.add('show'); }
+      return false;
+    }
 
     // Reuse a single ray direction vector per fire() call.
     // Aiming down sights tightens the spread for more precise fire.
