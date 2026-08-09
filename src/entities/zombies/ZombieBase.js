@@ -119,7 +119,48 @@ export class ZombieBase {
   //   bald        skip hair
   //   eyeColor / eyeEmissive   iris color + glow strength (default milky, faint)
   //   legless     no legs (crawler-type bodies)
+  // Build the realistic external model, scaled + tinted per the variant's opts,
+  // returning stub refs so variant gear (armour plates, sacs, humps) attaches to
+  // detached groups and is harmlessly dropped — the variant still looks realistic.
+  _modelHumanoid(rig, opts = {}) {
+    const s = opts.scale ?? 1;
+    rig.group.scale.setScalar(s);
+    if (opts.skinColor != null) {
+      const tint = new THREE.Color(opts.skinColor);
+      rig.group.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(m => { if (m.color) m.color.lerp(tint, 0.4); });
+      });
+    }
+    this._modelRig = rig;
+    this._modelMixer = rig.mixer;
+    this.headshotY = (rig.headshotY ?? 1.5) * s;
+    this._healthBarHeight = (rig.healthBarHeight ?? 2.0) * s;
+    rig.play('idle');
+    return { group: rig.group, refs: this._stubRefs() };
+  }
+
+  // Detached groups/materials satisfying every refs.* a variant touches. Anything
+  // added to them isn't in the scene graph, so gear is silently dropped.
+  _stubRefs() {
+    const G = () => new THREE.Group();
+    const arm = () => { const g = G(); g.shoulder = G(); g.elbow = G(); g.hand = G(); return g; };
+    const M = () => new THREE.MeshStandardMaterial();
+    const skull = G(); skull.material = M();
+    return {
+      root: G(), torsoGroup: G(), chest: G(), abdomen: G(), pelvis: G(),
+      headGroup: G(), jaw: G(), skull,
+      armL: arm(), armR: arm(), legL: G(), legR: G(),
+      skinMat: M(), goreMat: M(), shirtMat: M(), pantsMat: M(),
+    };
+  }
+
   buildHumanoid(opts = {}) {
+    // Prefer the external rigged model (realistic look) for every humanoid variant.
+    const rig = this.game?.zombieModelLoader?.createInstance?.();
+    if (rig) return this._modelHumanoid(rig, opts);
+
     const s     = opts.scale ?? 1;
     const bulk  = opts.bulk ?? 1;
     const footY = opts.footY ?? -0.9;
