@@ -20,12 +20,19 @@ const MODEL_CONFIG = {
 
   // Separate per-clip animation files (Mixamo / character-pack style). Each
   // file's first clip is renamed to `clip`. Leave [] if the mesh embeds clips.
+  // Multiple files can map to the same state — a random one plays each time the
+  // zombie (re)enters that state, so attacks/idles/deaths vary across the horde.
   animFiles: [
-    { file: '/models/anims/idle.fbx',   clip: 'idle'   },
-    { file: '/models/anims/walk.fbx',   clip: 'walk'   },
-    { file: '/models/anims/run.fbx',    clip: 'run'    },
-    { file: '/models/anims/attack.fbx', clip: 'attack' },
-    { file: '/models/anims/death.fbx',  clip: 'death'  },
+    { file: '/models/anims/idle.fbx',    clip: 'idle'    },
+    { file: '/models/anims/idle2.fbx',   clip: 'idle2'   },
+    { file: '/models/anims/walk.fbx',    clip: 'walk'    },
+    { file: '/models/anims/run.fbx',     clip: 'run'     },
+    { file: '/models/anims/attack.fbx',  clip: 'attack'  },
+    { file: '/models/anims/attack2.fbx', clip: 'attack2' },
+    { file: '/models/anims/attack3.fbx', clip: 'attack3' },
+    { file: '/models/anims/attack4.fbx', clip: 'attack4' },
+    { file: '/models/anims/death.fbx',   clip: 'death'   },
+    { file: '/models/anims/death2.fbx',  clip: 'death2'  },
   ],
 
   // Optional PBR texture set (standard web images) applied over the mesh's
@@ -96,29 +103,35 @@ export class ZombieModelLoader {
     group.add(model);
 
     const mixer = new THREE.AnimationMixer(model);
-    const actions = {};
-    for (const [state, clip] of Object.entries(this._stateClips)) {
-      if (clip) actions[state] = mixer.clipAction(clip);
+    // One action pool per state (may hold several variant clips).
+    const pools = {};
+    for (const [state, clipArr] of Object.entries(this._stateClips)) {
+      pools[state] = (clipArr || []).map(c => mixer.clipAction(c));
     }
 
-    let current = null;
+    let curState = null, current = null;
     const play = (state) => {
-      const action = actions[state] || actions.idle || actions.walk || null;
-      if (!action || action === current) return;
+      if (state === curState && current) return; // already in this state — don't re-pick
+      let pool = pools[state];
+      if (!pool || !pool.length) pool = pools.idle || pools.walk;
+      if (!pool || !pool.length) return;
+      // Random variant each time the state is (re)entered → varied attacks/idles/deaths.
+      const action = pool[(Math.random() * pool.length) | 0];
       action.reset();
       action.enabled = true;
       action.setEffectiveWeight(1);
       action.fadeIn(0.2);
       action.play();
-      if (current) current.crossFadeTo(action, 0.2, false);
+      if (current && current !== action) current.crossFadeTo(action, 0.2, false);
       current = action;
+      curState = state;
     };
 
     return {
       group, mixer, play,
       headshotY: this._headshotY,
       healthBarHeight: this._healthBarHeight,
-      hasAnim: Object.keys(actions).length > 0,
+      hasAnim: Object.values(pools).some(p => p.length > 0),
       stop: () => mixer.stopAllAction(),
     };
   }
@@ -152,10 +165,10 @@ export class ZombieModelLoader {
       this._stateClips = this._mapClips(clips);
 
       const matched = Object.entries(this._stateClips)
-        .filter(([, c]) => c).map(([s, c]) => `${s}=${c.name}`);
+        .filter(([, a]) => a.length).map(([s, a]) => `${s}×${a.length}`);
       console.info(
         `[ZombieModelLoader] model loaded (${clips.length} clips). ` +
-        `Matched: ${matched.join(', ') || 'none'}. All clips: [${clips.map(c => c.name).join(', ')}]`
+        `States: ${matched.join(', ') || 'none'}. All clips: [${clips.map(c => c.name).join(', ')}]`
       );
 
       this.ready = true;
@@ -240,18 +253,20 @@ export class ZombieModelLoader {
     }
   }
 
+  // Returns { state: AnimationClip[] } — every clip whose name matches the state's
+  // keywords (so idle2/attack2-4/death2 group with their base state).
   _mapClips(clips) {
     const out = {};
     for (const [state, needles] of Object.entries(MODEL_CONFIG.clips)) {
-      out[state] = clips.find(c => {
+      out[state] = clips.filter(c => {
         const n = (c.name || '').toLowerCase();
         return needles.some(k => n.includes(k));
-      }) || null;
+      });
     }
-    out.walk   = out.walk   || out.run  || out.idle || clips[0] || null;
-    out.run    = out.run    || out.walk || null;
-    out.idle   = out.idle   || out.walk || null;
-    out.attack = out.attack || out.walk || null;
+    if (!out.walk.length)   out.walk   = out.run.length ? out.run : (out.idle.length ? out.idle : (clips[0] ? [clips[0]] : []));
+    if (!out.run.length)    out.run    = out.walk;
+    if (!out.idle.length)   out.idle   = out.walk;
+    if (!out.attack.length) out.attack = out.walk;
     return out;
   }
 
