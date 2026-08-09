@@ -9,6 +9,7 @@ import { AudioManager } from './AudioManager.js';
 import { Player } from '../entities/Player.js';
 import { ZombieManager } from '../entities/ZombieManager.js';
 import { zombieDisplayName } from '../entities/zombies/ZombieBase.js';
+import { ZombieModelLoader } from '../entities/zombies/ZombieModelLoader.js';
 import { VehicleManager } from '../entities/VehicleManager.js';
 import { TerrainGenerator } from '../world/TerrainGenerator.js';
 import { ChunkManager } from '../world/ChunkManager.js';
@@ -84,6 +85,10 @@ export class Game {
     this.treeGenerator = new TreeGenerator(this);
     this.neighborhood = new NeighborhoodBuilder(this);
     this.chunkManager = new ChunkManager(this, this.terrainGenerator);
+
+    // Start loading the optional external zombie model before any zombie spawns.
+    // Zombies fall back to the procedural body until (and unless) it's ready.
+    this.zombieModelLoader = new ZombieModelLoader();
 
     this.player = new Player(this);
     this.zombieManager = new ZombieManager(this);

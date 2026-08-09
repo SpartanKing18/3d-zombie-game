@@ -74,6 +74,19 @@ export class ZombieBase {
   }
 
   createMesh() {
+    // Prefer an external rigged model if one has been loaded; otherwise build the
+    // procedural humanoid. Only the default body goes through the loader — special
+    // variants override createMesh() and keep their bespoke procedural shapes.
+    const rig = this.game.zombieModelLoader?.createInstance?.();
+    if (rig) {
+      this._modelRig = rig;
+      this._modelMixer = rig.mixer;
+      this.headshotY = rig.headshotY;
+      this._healthBarHeight = rig.healthBarHeight;
+      this.finalizeMesh(rig.group);
+      rig.play('idle');
+      return;
+    }
     const { group } = this.buildHumanoid();
     this.finalizeMesh(group);
   }
@@ -457,6 +470,19 @@ export class ZombieBase {
   // Skeletal animation. Zombies always move a little — even standing idle they
   // breathe and sway, so they never look like frozen mannequins.
   _animate(deltaTime) {
+    // External rigged model: advance its mixer and crossfade to the clip that
+    // matches the current state instead of the procedural limb animation.
+    if (this._modelMixer) {
+      this._modelMixer.update(deltaTime);
+      if (this._modelRig?.hasAnim) {
+        const clip = this.state === 'idle'      ? 'idle'
+                   : this.state === 'attacking' ? 'attack'
+                   : (this.speed > 4.2 ? 'run' : 'walk');
+        this._modelRig.play(clip);
+      }
+      return;
+    }
+
     const lArm = this._leftArm, rArm = this._rightArm;
     const lLeg = this._leftLeg, rLeg = this._rightLeg, torso = this._torsoGroup;
     const laB = lArm?.userData?.baseRotX ?? 0, raB = rArm?.userData?.baseRotX ?? 0;
