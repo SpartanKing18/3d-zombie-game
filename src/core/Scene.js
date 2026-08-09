@@ -419,28 +419,27 @@ export class Scene {
     }
     const { day, dusk, night, _tmp } = this._skyPalette;
 
+    // NOTE: sun/hemisphere light INTENSITY is owned by DayNightCycle (smooth
+    // sunElevation curves), which runs just before this. setSkyTime only drives
+    // the sky-shader gradient, fog colour, and the ambient colour TINT — writing
+    // intensity here too would clobber DayNightCycle's smooth values with a
+    // stepwise curve (last-writer-wins bug).
     if (t < 0.2 || t > 0.85) {
       _tmp.top.copy(night.top); _tmp.horizon.copy(night.horizon); _tmp.ground.copy(night.ground);
-      if (this.sunLight) this.sunLight.intensity = 0.05;
-      if (this.hemiLight) { this.hemiLight.intensity = 0.1; this.hemiLight.color.set(0x1a2a4a); }
+      if (this.hemiLight) this.hemiLight.color.set(0x1a2a4a);
     } else if (t < 0.3 || t > 0.75) {
       const f = t < 0.3 ? (t - 0.2) / 0.1 : (0.85 - t) / 0.1;
       _tmp.top.copy(night.top).lerp(dusk.top, f);
       _tmp.horizon.copy(night.horizon).lerp(dusk.horizon, f);
       _tmp.ground.copy(night.ground).lerp(dusk.ground, f);
-      if (this.sunLight) this.sunLight.intensity = f * 1.5;
-      if (this.hemiLight) this.hemiLight.intensity = 0.1 + f * 0.3;
     } else if (t < 0.4 || t > 0.65) {
       const f = t < 0.4 ? (t - 0.3) / 0.1 : (0.75 - t) / 0.1;
       _tmp.top.copy(dusk.top).lerp(day.top, f);
       _tmp.horizon.copy(dusk.horizon).lerp(day.horizon, f);
       _tmp.ground.copy(dusk.ground).lerp(day.ground, f);
-      if (this.sunLight) this.sunLight.intensity = 1.5 + f * 0.5;
-      if (this.hemiLight) this.hemiLight.intensity = 0.4 + f * 0.1;
     } else {
       _tmp.top.copy(day.top); _tmp.horizon.copy(day.horizon); _tmp.ground.copy(day.ground);
-      if (this.sunLight) this.sunLight.intensity = 2.0;
-      if (this.hemiLight) { this.hemiLight.intensity = 0.5; this.hemiLight.color.set(0x87ceeb); }
+      if (this.hemiLight) this.hemiLight.color.set(0x87ceeb);
     }
 
     this.skyUniforms.topColor.value.copy(_tmp.top);
