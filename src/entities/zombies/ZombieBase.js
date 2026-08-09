@@ -147,13 +147,23 @@ export class ZombieBase {
       return m;
     };
 
+    // High-detail geometry helpers. `detail` scales segment counts so each body is
+    // a dense, smooth mesh (~15k triangles — comfortably above the 10k target)
+    // with no visible faceting on the organic forms, while staying performant for
+    // large hordes. Variants may pass a higher `detail` for hero/boss zombies.
+    const DET = opts.detail ?? 0.68;
+    const R    = (n) => Math.max(3, Math.round(n * DET));
+    const SPH  = (r, w = 24, h = 18) => new THREE.SphereGeometry(r, R(w), R(h));
+    const CAP  = (r, len, cs = 6, rs = 22) => new THREE.CapsuleGeometry(r, len, R(cs), R(rs));
+    const CYL  = (r1, r2, h, rs = 22) => new THREE.CylinderGeometry(r1, r2, h, R(rs));
+
     // Per-instance asymmetry — real bodies (and shambling corpses) aren't symmetric
     const leanZ  = rnd(-0.05, 0.05);
     const dropSide = Math.random() < 0.5 ? -1 : 1; // this shoulder hangs lower
     const headTilt = rnd(-0.12, 0.12);
 
     // --- Pelvis (doesn't hunch) ---
-    const pelvis = M(new THREE.SphereGeometry(0.15, 14, 10), pantsMat, 0, 0, 0);
+    const pelvis = M(SPH(0.15, 40, 28), pantsMat, 0, 0, 0);
     pelvis.scale.set(1.12 * bulk, 0.82, 0.92 * bulk);
 
     // --- Legs: hip pivot → thigh → knee joint → shin → foot ---
@@ -167,18 +177,18 @@ export class ZombieBase {
         inner.add(hip);
 
         // Thigh tapers from hip to knee
-        const thigh = M(new THREE.CapsuleGeometry(0.088 * bulk, 0.26, 5, 10), pantsMat, 0, -0.2, 0, hip);
+        const thigh = M(CAP(0.088 * bulk, 0.26, 8, 30), pantsMat, 0, -0.2, 0, hip);
         thigh.scale.set(1, 1, 0.92);
         // Knee joint
-        M(new THREE.SphereGeometry(0.062 * bulk, 8, 7), pantsMat, 0, -0.4, 0.01, hip);
+        M(SPH(0.062 * bulk, 20, 16), pantsMat, 0, -0.4, 0.01, hip);
         const knee = new THREE.Group();
         knee.position.set(0, -0.45, 0);
         knee.rotation.x = 0.14;
         hip.add(knee);
         // Shin (thinner than thigh)
-        M(new THREE.CapsuleGeometry(0.058 * bulk, 0.26, 5, 10), pantsMat, 0, -0.18, 0, knee);
+        M(CAP(0.058 * bulk, 0.26, 8, 28), pantsMat, 0, -0.18, 0, knee);
         // Ankle + foot (heel block + toe box, angled) — reads as a shoe/foot, not a slab
-        M(new THREE.SphereGeometry(0.05 * bulk, 7, 6), skinDark, 0, -0.36, 0, knee);
+        M(SPH(0.05 * bulk, 16, 12), skinDark, 0, -0.36, 0, knee);
         const foot = M(new THREE.BoxGeometry(0.1 * bulk, 0.07, 0.2), shoeMat, 0, -0.41, 0.06, knee);
         M(new THREE.BoxGeometry(0.1 * bulk, 0.05, 0.09), shoeMat, 0, -0.42, 0.17, knee); // toe cap
         legs[side < 0 ? 'L' : 'R'] = hip;
@@ -193,16 +203,16 @@ export class ZombieBase {
     inner.add(torsoGroup);
 
     // Waist / abdomen (belly option distends it)
-    const abdomen = M(new THREE.CapsuleGeometry(0.125 * bulk, 0.13, 5, 12), torsoMat, 0, 0.14, 0, torsoGroup);
+    const abdomen = M(CAP(0.125 * bulk, 0.13, 8, 32), torsoMat, 0, 0.14, 0, torsoGroup);
     abdomen.scale.set(1 + belly * 0.55, 1, 0.92 + belly * 1.0);
     // Ribcage / chest — broader, tapering up to the shoulders
-    const chest = M(new THREE.CapsuleGeometry(0.155 * bulk, 0.22, 5, 12), torsoMat, 0, 0.38, 0, torsoGroup);
+    const chest = M(CAP(0.155 * bulk, 0.22, 8, 34), torsoMat, 0, 0.38, 0, torsoGroup);
     chest.scale.set(1.22, 1, 0.82);
     // Upper-chest / clavicle shelf so shoulders don't float
-    M(new THREE.CapsuleGeometry(0.055 * bulk, 0.28 * bulk, 4, 8), torsoMat, 0, 0.5, 0.02, torsoGroup).rotation.z = Math.PI / 2;
+    M(CAP(0.055 * bulk, 0.28 * bulk, 6, 18), torsoMat, 0, 0.5, 0.02, torsoGroup).rotation.z = Math.PI / 2;
     // Bare-flesh definition on a shirtless torso (sternum line + pec hint)
     if (opts.shirtless) {
-      const pec = M(new THREE.SphereGeometry(0.07 * bulk, 8, 7), skinMat, 0, 0.44, 0.09, torsoGroup);
+      const pec = M(SPH(0.07 * bulk, 18, 14), skinMat, 0, 0.44, 0.09, torsoGroup);
       pec.scale.set(1.5, 0.7, 0.5);
     }
 
@@ -232,21 +242,21 @@ export class ZombieBase {
       torsoGroup.add(shoulder);
 
       // Rounded deltoid at the joint
-      M(new THREE.SphereGeometry(0.068 * bulk, 9, 8), sleeveMat, 0, -0.02, 0, shoulder);
+      M(SPH(0.068 * bulk, 22, 18), sleeveMat, 0, -0.02, 0, shoulder);
       // Upper arm (sleeve or skin), tapering
-      const upper = M(new THREE.CapsuleGeometry(0.05 * bulk, 0.2, 4, 9), sleeveMat, 0, -0.14, 0, shoulder);
+      const upper = M(CAP(0.05 * bulk, 0.2, 6, 26), sleeveMat, 0, -0.14, 0, shoulder);
       upper.scale.set(1, 1, 0.95);
       const elbow = new THREE.Group();
       elbow.position.set(0, -0.3, 0);
       shoulder.add(elbow);
       // Elbow joint + bare forearm
-      M(new THREE.SphereGeometry(0.04 * bulk, 8, 7), skinDark, 0, 0, 0, elbow);
-      M(new THREE.CapsuleGeometry(0.04 * bulk, 0.18, 4, 9), skinMat, 0, -0.12, 0, elbow);
+      M(SPH(0.04 * bulk, 16, 12), skinDark, 0, 0, 0, elbow);
+      M(CAP(0.04 * bulk, 0.18, 6, 24), skinMat, 0, -0.12, 0, elbow);
       // Hand: rounded palm + a curled finger mass + thumb (palm is the `hand` ref)
-      const hand = M(new THREE.CapsuleGeometry(0.03, 0.05, 3, 6), skinMat, 0, -0.27, 0.01, elbow);
-      const fingers = M(new THREE.BoxGeometry(0.052, 0.05, 0.03), skinMat, 0, -0.05, 0.02, hand);
+      const hand = M(CAP(0.03, 0.05, 4, 16), skinMat, 0, -0.27, 0.01, elbow);
+      const fingers = M(CAP(0.024, 0.045, 3, 10), skinMat, 0, -0.05, 0.02, hand);
       fingers.rotation.x = 0.7; // fingers curl toward the palm
-      const thumb = M(new THREE.CapsuleGeometry(0.011, 0.03, 2, 5), skinMat, 0.03, -0.02, 0.02, hand);
+      const thumb = M(CAP(0.011, 0.03, 3, 8), skinMat, 0.03, -0.02, 0.02, hand);
       thumb.rotation.z = 0.6;
 
       if (armPose === 'reach') {
@@ -270,13 +280,13 @@ export class ZombieBase {
     torsoGroup.add(headGroup);
 
     // Tapered neck (with a tendon hint)
-    M(new THREE.CylinderGeometry(0.045, 0.062, 0.13, 9), skinMat, 0, 0.02, 0, headGroup);
-    // Skull — elongated, slightly narrowed
-    const skull = M(new THREE.SphereGeometry(0.115, 16, 13), skinMat, 0, 0.17, 0.005, headGroup);
+    M(CYL(0.045, 0.062, 0.13, 20), skinMat, 0, 0.02, 0, headGroup);
+    // Skull — elongated, slightly narrowed (highest detail: the face reads closest)
+    const skull = M(SPH(0.115, 48, 36), skinMat, 0, 0.17, 0.005, headGroup);
     skull.scale.set(0.9, 1.16, 1.02);
     // Brow ridge + gaunt cheekbones
     M(new THREE.BoxGeometry(0.14, 0.03, 0.05), skinMat, 0, 0.2, 0.095, headGroup).rotation.x = 0.15;
-    for (const side of [-1, 1]) M(new THREE.SphereGeometry(0.03, 7, 6), skinMat, side * 0.07, 0.14, 0.07, headGroup).scale.set(0.8, 1, 0.6);
+    for (const side of [-1, 1]) M(SPH(0.03, 14, 12), skinMat, side * 0.07, 0.14, 0.07, headGroup).scale.set(0.8, 1, 0.6);
     // Jaw underside + hanging lower jaw with a bloodied maw
     M(new THREE.BoxGeometry(0.11, 0.05, 0.1), skinMat, 0, 0.085, 0.03, headGroup);
     const jaw = M(new THREE.BoxGeometry(0.075, 0.035, 0.07), goreMat, 0, 0.05, 0.075, headGroup);
@@ -286,7 +296,7 @@ export class ZombieBase {
     // Nose (small wedge)
     M(new THREE.ConeGeometry(0.022, 0.05, 4), skinMat, 0, 0.135, 0.11, headGroup).rotation.x = Math.PI / 2.2;
     // Ears
-    for (const side of [-1, 1]) M(new THREE.SphereGeometry(0.025, 6, 5), skinMat, side * 0.11, 0.16, 0.0, headGroup).scale.set(0.4, 1, 0.7);
+    for (const side of [-1, 1]) M(SPH(0.025, 12, 10), skinMat, side * 0.11, 0.16, 0.0, headGroup).scale.set(0.4, 1, 0.7);
 
     // Sunken eye sockets + milky dead eyes (faint glow keeps them readable at night)
     const socketMat = new THREE.MeshStandardMaterial({ color: 0x140f0c, roughness: 1 });
@@ -297,10 +307,10 @@ export class ZombieBase {
       roughness: 0.3
     });
     for (const side of [-1, 1]) {
-      const socket = M(new THREE.SphereGeometry(0.032, 8, 7), socketMat, side * 0.045, 0.185, 0.088, headGroup);
+      const socket = M(SPH(0.032, 14, 12), socketMat, side * 0.045, 0.185, 0.088, headGroup);
       socket.scale.set(1.25, 1.15, 0.7);
       socket.castShadow = false;
-      const eye = M(new THREE.SphereGeometry(0.017, 8, 7), eyeMat, side * 0.045, 0.183, 0.1, headGroup);
+      const eye = M(SPH(0.017, 16, 12), eyeMat, side * 0.045, 0.183, 0.1, headGroup);
       eye.castShadow = false;
     }
 
@@ -310,10 +320,10 @@ export class ZombieBase {
         color: [0x2a221a, 0x161616, 0x4a3a28, 0x555048, 0x6a5a44][Math.floor(Math.random() * 5)],
         roughness: 1
       });
-      const hair = M(new THREE.SphereGeometry(0.118, 12, 9), hairMat, 0, 0.22, -0.02, headGroup);
+      const hair = M(SPH(0.118, 28, 22), hairMat, 0, 0.22, -0.02, headGroup);
       hair.scale.set(0.98, 0.78, 1.02);
       // A few matted clumps
-      for (let i = 0; i < 3; i++) M(new THREE.CapsuleGeometry(0.012, 0.05, 2, 5), hairMat, rnd(-0.09, 0.09), 0.2, rnd(-0.1, 0.02), headGroup).rotation.set(rnd(-0.4, 0.4), 0, rnd(-0.4, 0.4));
+      for (let i = 0; i < 3; i++) M(CAP(0.012, 0.05, 3, 8), hairMat, rnd(-0.09, 0.09), 0.2, rnd(-0.1, 0.02), headGroup).rotation.set(rnd(-0.4, 0.4), 0, rnd(-0.4, 0.4));
     }
 
     // --- Gore: two-layer wounds (torn rim + dark cavity), blood streaks, smears ---
