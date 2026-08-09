@@ -1,39 +1,46 @@
-# External zombie model — drop-in folder
+# External zombie model (drop-in)
 
-The game renders **procedural** zombies by default. To swap in a real downloaded
-model, put the files here. Vite serves this folder at the site root, so a file at
-`public/models/zombie.glb` is loaded from `/models/zombie.glb`.
+The game renders **procedural** zombies by default and uses the files here when
+present. If anything is missing or fails to load, it silently falls back to the
+procedural body — nothing breaks.
 
-## What to add
+## What's here (shipped character pack)
 
-| File | Purpose |
-|------|---------|
-| `zombie.glb` (or `.gltf` / `.fbx`) | **Required.** The rigged base mesh. GLB is preferred — convert the pack's mesh if it's FBX. |
-| `zombie_anim.glb` (or `.gltf` / `.fbx`) | **Optional.** Only needed if the animations are a *separate* file from the mesh (the pack's "Zombie animation" archive). If the mesh file already embeds its clips, skip this. |
+```
+models/
+  zombie.fbx              rigged base mesh (FBX 7.5, skinned)
+  anims/
+    idle.fbx  walk.fbx  run.fbx  attack.fbx  death.fbx   one animation clip each
+  textures/
+    albedo.jpg  normal.jpg  roughness.jpg  metalness.jpg  ao.jpg  emissive.jpg
+```
 
-Textures that ship *inside* the GLB/FBX are used automatically. (The pack's
-separate "Texture set" archives are UV-mapped for this mesh; embed them into the
-GLB during conversion, e.g. in Blender: import FBX + textures → export glTF Binary.)
+The source pack shipped a base FBX + separate per-clip animation FBX files +
+4096² TGA textures. The TGAs were converted/downscaled to web JPGs (albedo &
+normal 2048², the rest 1024²; `roughness.jpg` is the pack's gloss map inverted),
+and five clips were selected. This whole folder is ~15 MB.
 
-## How it behaves
+## How it works
 
-- Loaded once at startup, cloned per zombie (each owns its geometry + materials).
-- Auto-scaled to ~1.8 m with feet planted, so it aligns with the world.
-- Gameplay states drive the animation: `idle`, `walk`, `run`, `attack`.
-- **If anything here is missing or fails to load, the game silently falls back to
-  the procedural zombies — nothing breaks.**
+`src/entities/zombies/ZombieModelLoader.js` loads the base mesh, merges one clip
+from each `anims/*.fbx`, builds a PBR material from `textures/`, auto-scales to
+~1.8 m and plants the feet, then renders it per zombie (each instance owns its
+geometry + materials). Gameplay state drives the clip: `idle / walk / run /
+attack`; death freezes the pose for the existing fall/fade/revive logic.
 
-## Tuning (in `src/entities/zombies/ZombieModelLoader.js` → `MODEL_CONFIG`)
+## Tuning (`MODEL_CONFIG` in ZombieModelLoader.js)
 
-Open the browser console after adding the files — the loader logs every animation
-clip name it found and which ones it matched. If a state shows no clip, add the
-right substring to `MODEL_CONFIG.clips`. Other knobs:
+Open the browser console — the loader logs every clip it found and matched.
 
-- `rotationY` — set to `Math.PI` if the model faces backwards.
-- `targetHeight` / `footLocalY` — size / ground alignment.
+- `rotationY`: set to `Math.PI` if the model faces backwards.
+- `targetHeight` / `footLocalY`: size / ground alignment.
+- `animFiles`: add more clips (the pack also has atack2-4, death2, gethit, roar,
+  idle2) by copying them in and adding `{ file, clip }` entries.
+- `textures`: swap in a different texture set, or remove maps you don't want.
+- Prefer a single GLB? Drop `zombie.glb` in and it's used instead of the FBX.
 
-## Performance note
+## Performance
 
-Each zombie clones the mesh's geometry, so a very high-poly model (e.g. 16k+
-triangles) across a large horde uses real GPU memory. If you see frame drops,
-use a lower-poly mesh or cap concurrent zombies.
+Each zombie clones the mesh geometry. This model is fairly high-poly, so a large
+horde uses real GPU memory — lower the model res or cap concurrent zombies if you
+see frame drops.
