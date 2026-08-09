@@ -92,6 +92,7 @@ function startGame() {
 
     console.log('Starting game loop and terrain generation...');
     game.start();
+    setupControlsCard();
     console.log('Game started! Press Enter to open console with commands.');
     console.log('Example commands: /godmode, /time set day, /spawn zombie walker');
   } catch (e) {
@@ -103,6 +104,30 @@ function startGame() {
     const worldSelect = document.getElementById('world-select');
     mainMenu.classList.remove('hidden');
     worldSelect.classList.remove('active');
+  }
+}
+
+// Controls quick-reference: auto-show on the player's first run (localStorage),
+// toggle with the corner ? button, dismiss with "Got it". Never pauses the game.
+function setupControlsCard() {
+  const card = document.getElementById('controls-card');
+  const helpBtn = document.getElementById('help-btn');
+  const closeBtn = document.getElementById('cc-close');
+  if (!card || !helpBtn) return;
+
+  const show = () => { card.style.display = 'flex'; };
+  const hide = () => { card.style.display = 'none'; };
+
+  helpBtn.style.display = 'flex';
+  helpBtn.onclick = () => { card.style.display === 'flex' ? hide() : show(); };
+  if (closeBtn) closeBtn.onclick = hide;
+  card.addEventListener('click', (e) => { if (e.target === card) hide(); });
+
+  let seen = false;
+  try { seen = localStorage.getItem('dz_controls_seen') === '1'; } catch (e) {}
+  if (!seen) {
+    show();
+    try { localStorage.setItem('dz_controls_seen', '1'); } catch (e) {}
   }
 }
 

@@ -49,13 +49,15 @@ export class WeaponBase {
     // Skip ammo check for melee weapons (magSize <= 0 means infinite/melee)
     if (this.magSize > 0 && this.ammoInMag <= 0) return false;
 
-    // Reuse a single ray direction vector per fire() call
+    // Reuse a single ray direction vector per fire() call.
+    // Aiming down sights tightens the spread for more precise fire.
     if (!this._rayDir) this._rayDir = new THREE.Vector3();
+    const spread = this.spread * (game?._adsActive ? 0.35 : 1);
     for (let i = 0; i < this.pellets; i++) {
       this._rayDir.copy(direction);
-      this._rayDir.x += (Math.random() - 0.5) * this.spread;
-      this._rayDir.y += (Math.random() - 0.5) * this.spread;
-      this._rayDir.z += (Math.random() - 0.5) * this.spread;
+      this._rayDir.x += (Math.random() - 0.5) * spread;
+      this._rayDir.y += (Math.random() - 0.5) * spread;
+      this._rayDir.z += (Math.random() - 0.5) * spread;
       this._rayDir.normalize();
       this.raycast(position, this._rayDir, game);
     }

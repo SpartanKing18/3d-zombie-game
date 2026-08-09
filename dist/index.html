@@ -20,8 +20,8 @@
   <!-- Inline SVG favicon (no external request) -->
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%9F%3C/text%3E%3C/svg%3E">
 
-  <script type="module" crossorigin src="./assets/index-BbDEpLC2.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BCHT4T7U.css">
+  <script type="module" crossorigin src="./assets/index-DOISdJlq.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CwMzpj_m.css">
 </head>
 <body>
   <div id="game-container">
@@ -302,5 +302,30 @@
 
   <!-- Mission-complete toast -->
   <div id="mission-toast" style="display:none;"></div>
+
+  <!-- Controls quick-reference (shown once on first play; reopen via the ? button) -->
+  <button id="help-btn" title="Controls" aria-label="Controls">?</button>
+  <div id="controls-card" style="display:none;">
+    <div class="cc-panel">
+      <div class="cc-title">HOW TO PLAY</div>
+      <div class="cc-grid">
+        <span class="cc-k">W A S D</span><span class="cc-d">Move</span>
+        <span class="cc-k">Shift</span><span class="cc-d">Sprint</span>
+        <span class="cc-k">Space</span><span class="cc-d">Jump</span>
+        <span class="cc-k">C</span><span class="cc-d">Crouch</span>
+        <span class="cc-k">Left&nbsp;Mouse</span><span class="cc-d">Fire / Attack</span>
+        <span class="cc-k">Right&nbsp;Mouse</span><span class="cc-d">Aim down sights (hold)</span>
+        <span class="cc-k">R</span><span class="cc-d">Reload</span>
+        <span class="cc-k">F</span><span class="cc-d">Interact / Pick up</span>
+        <span class="cc-k">E</span><span class="cc-d">Inventory</span>
+        <span class="cc-k">1 – 9</span><span class="cc-d">Weapon slots</span>
+        <span class="cc-k">T</span><span class="cc-d">Throw distraction</span>
+        <span class="cc-k">F / G / H</span><span class="cc-d">Melee: punch / slap / kick</span>
+      </div>
+      <div class="cc-hint">Click the screen to look around · survive the night</div>
+      <button id="cc-close" class="cc-close">GOT IT</button>
+    </div>
+  </div>
+
 </body>
 </html>

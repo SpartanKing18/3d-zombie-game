@@ -3855,3 +3855,52 @@ body.weather-storm::after {
 body.weather-fog #hud { opacity: 0.9; }
 body.weather-storm .minimap-container { border-color: rgba(100,150,255,0.35); }
 body.weather-rain  .minimap-container { border-color: rgba(80,130,200,0.3); }
+
+/* ── Controls quick-reference card + help button ─────────────────────────── */
+#help-btn {
+  position: fixed; bottom: 14px; right: 14px; z-index: 850;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(10,16,12,0.8); color: #6cff9b;
+  border: 1px solid rgba(108,255,155,0.5); font: 700 18px monospace;
+  cursor: pointer; display: none; align-items: center; justify-content: center;
+  transition: background 0.2s, transform 0.15s; padding: 0; line-height: 1;
+}
+#help-btn:hover { background: rgba(20,40,26,0.95); transform: scale(1.08); }
+
+#controls-card {
+  position: fixed; inset: 0; z-index: 950;
+  background: radial-gradient(ellipse at center, rgba(4,8,6,0.72), rgba(2,4,3,0.9));
+  display: flex; align-items: center; justify-content: center;
+  animation: ccFade 0.25s ease;
+}
+@keyframes ccFade { from { opacity: 0; } to { opacity: 1; } }
+#controls-card .cc-panel {
+  background: linear-gradient(160deg, rgba(14,20,16,0.97), rgba(8,12,10,0.97));
+  border: 1px solid rgba(108,255,155,0.35);
+  border-radius: 12px; padding: 26px 32px; max-width: 460px; width: calc(100% - 48px);
+  box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 30px rgba(108,255,155,0.04);
+}
+#controls-card .cc-title {
+  color: #6cff9b; font: 700 20px monospace; letter-spacing: 3px;
+  text-align: center; margin-bottom: 18px; text-shadow: 0 0 14px rgba(108,255,155,0.5);
+}
+#controls-card .cc-grid {
+  display: grid; grid-template-columns: auto 1fr; gap: 9px 16px; align-items: center;
+}
+#controls-card .cc-k {
+  color: #eafff1; font: 600 12px monospace; text-align: center;
+  background: rgba(108,255,155,0.1); border: 1px solid rgba(108,255,155,0.28);
+  border-radius: 5px; padding: 4px 8px; white-space: nowrap;
+}
+#controls-card .cc-d { color: #a9c6b6; font: 400 13px monospace; }
+#controls-card .cc-hint {
+  color: #6f8a7c; font: 400 11px monospace; text-align: center; margin: 18px 0 16px;
+}
+#controls-card .cc-close {
+  display: block; margin: 0 auto; padding: 9px 26px;
+  background: rgba(108,255,155,0.14); color: #6cff9b;
+  border: 1px solid rgba(108,255,155,0.5); border-radius: 6px;
+  font: 700 13px monospace; letter-spacing: 2px; cursor: pointer;
+  transition: background 0.2s;
+}
+#controls-card .cc-close:hover { background: rgba(108,255,155,0.28); }

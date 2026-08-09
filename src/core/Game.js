@@ -139,6 +139,46 @@ export class Game {
     this._addKillFeedEntry(typeName, this.zombieKills, zombie.type);
   }
 
+  // Hold right-mouse to aim down sights: smooth per-weapon FOV zoom, sniper scope
+  // overlay, viewmodel pulled to centre, and tighter spread (applied in WeaponBase).
+  _updateADS(dt) {
+    const cam = this.scene.getCamera();
+    if (!cam) return;
+    const weapon = this.weaponManager?.getCurrentWeapon?.();
+    const isGun = !!weapon && weapon.magSize !== -1;
+    const held = !!this.inputManager?.mouse?.rightClick;
+    const canAim = isGun && this.isRunning && !this.isPaused
+      && !this.inventorySystem?.isOpen && this.inputManager?.isPointerLocked?.();
+    const want = canAim && held;
+
+    if (want !== this._adsActive) {
+      this._adsActive = want;
+      const nm = (weapon?.name || '').toLowerCase();
+      const isSniper = /sniper/.test(nm) || weapon?.type === 'sniper';
+      const scopeEl = document.getElementById('scope-overlay');
+      if (scopeEl) scopeEl.style.display = (want && isSniper) ? 'block' : 'none';
+      this.weaponViewModel?.setADS?.(want, isSniper);
+      this._adsManaging = true; // take control of fov until we settle back to base
+    }
+
+    if (!this._adsManaging) return;
+    const base = 75;
+    let target = base;
+    if (this._adsActive && weapon) {
+      const nm = (weapon.name || '').toLowerCase();
+      target = /sniper/.test(nm) ? 14
+             : /shotgun|sawed/.test(nm) ? 58
+             : /pistol|revolver|flare/.test(nm) ? 52
+             : 44; // rifle / smg
+    }
+    cam.fov += (target - cam.fov) * Math.min(1, dt * 14);
+    if (!this._adsActive && Math.abs(cam.fov - base) < 0.2) {
+      cam.fov = base;
+      this._adsManaging = false; // settled — release fov so other effects can use it
+    }
+    cam.updateProjectionMatrix();
+  }
+
   _initKillFeed() {
     // #kill-feed is already in HTML; this is a no-op fallback
     if (document.getElementById('kill-feed')) return;
@@ -335,38 +375,8 @@ export class Game {
       canvas.addEventListener('click', () => this.inputManager.requestPointerLock());
       this._setupClickPickup();
 
-      // Right-click: ADS scope zoom
-      canvas.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        if (!this.isRunning || this.isPaused) return;
-        const cam = this.scene.getCamera();
-        const weapon = this.weaponManager?.getCurrentWeapon?.();
-        const isSniper = weapon?.name?.toLowerCase().includes('sniper') || weapon?.type === 'sniper';
-        const isRifle = weapon?.name?.toLowerCase().includes('rifle');
-        if (isSniper) {
-          this._adsActive = !this._adsActive;
-          cam.fov = this._adsActive ? 12 : 75;
-          cam.updateProjectionMatrix();
-          // Add scope overlay
-          let scopeEl = document.getElementById('scope-overlay');
-          if (!scopeEl) {
-            scopeEl = document.createElement('div');
-            scopeEl.id = 'scope-overlay';
-            scopeEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:50;display:none;';
-            scopeEl.innerHTML = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.78);"></div>
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:340px;height:340px;border-radius:50%;background:transparent;box-shadow:0 0 0 9999px rgba(0,0,0,0.78);border:3px solid #44aa44;"></div>
-        <div style="position:absolute;top:50%;left:50%;width:320px;height:1px;background:#44aa44;transform:translate(-50%,-50%);opacity:0.7;"></div>
-        <div style="position:absolute;top:50%;left:50%;width:1px;height:320px;background:#44aa44;transform:translate(-50%,-50%);opacity:0.7;"></div>
-        <div style="position:absolute;top:50%;left:50%;width:12px;height:12px;border-radius:50%;border:1.5px solid #44aa44;transform:translate(-50%,-50%);"></div>`;
-            document.body.appendChild(scopeEl);
-          }
-          scopeEl.style.display = this._adsActive ? 'block' : 'none';
-        } else if (isRifle) {
-          this._adsActive = !this._adsActive;
-          cam.fov = this._adsActive ? 35 : 75;
-          cam.updateProjectionMatrix();
-        }
-      });
+      // ADS is hold-to-aim now (see _updateADS, driven from the update loop).
+      canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
       // Step physics to settle player
       for (let i = 0; i < 20; i++) {
@@ -464,6 +474,7 @@ export class Game {
 
     try {
       if (this.weaponManager) { this.weaponManager.update(dt); this.handleWeaponInput(); }
+      this._updateADS(dt);
       this.weaponViewModel?.update(dt, this.player, this.weaponManager?.getCurrentWeapon?.());
     } catch (e) { console.error('[WeaponManager]', e); }
 

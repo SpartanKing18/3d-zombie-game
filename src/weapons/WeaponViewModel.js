@@ -20,9 +20,19 @@ export class WeaponViewModel {
     this._muzzle = null;
     this._muzzleTimer = 0;
     this._bob = 0;
+    this._swing = 0;           // melee swing timer
+    this._adsT = 0;            // 0 hip .. 1 aimed
+    this._aiming = false;
+    this._sniperAim = false;
+    this._hipPos = new THREE.Vector3();
+    this._aimPos = new THREE.Vector3();
 
-    this._mkMat = (color, metalness = 0.65, roughness = 0.42) =>
-      new THREE.MeshStandardMaterial({ color, metalness, roughness, depthTest: false, depthWrite: false });
+    // Slight emissive keeps the weapon readable even in dark scenes
+    this._mkMat = (color, metalness = 0.6, roughness = 0.45) =>
+      new THREE.MeshStandardMaterial({
+        color, metalness, roughness, emissive: 0x0b0c0e, emissiveIntensity: 1,
+        depthTest: false, depthWrite: false
+      });
   }
 
   _box(w, h, d, mat, x = 0, y = 0, z = 0) {
@@ -67,10 +77,10 @@ export class WeaponViewModel {
     if (!weapon) return;
 
     const g = new THREE.Group();
-    const metal = this._mkMat(0x3a4048, 0.7, 0.4);
-    const dark  = this._mkMat(0x1b1e23, 0.5, 0.5);
-    const grip  = this._mkMat(0x24262b, 0.2, 0.8);
-    const wood  = this._mkMat(0x6a4a30, 0.1, 0.85);
+    const metal = this._mkMat(0x4b535d, 0.7, 0.38);
+    const dark  = this._mkMat(0x24272d, 0.5, 0.5);
+    const grip  = this._mkMat(0x2d3036, 0.2, 0.8);
+    const wood  = this._mkMat(0x7a5738, 0.1, 0.85);
 
     const nm = (weapon.name || '').toLowerCase();
     let muzzleZ = -0.5;
@@ -114,6 +124,9 @@ export class WeaponViewModel {
       this.root.position.set(0.19, -0.18, smg ? -0.44 : -0.48);
     }
     this.root.scale.setScalar(0.85);
+    // Remember the hip pose and derive an aim pose that pulls the gun toward centre
+    this._hipPos.copy(this.root.position);
+    this._aimPos.set(0.002, this._hipPos.y + 0.06, this._hipPos.z + 0.08);
 
     // Muzzle flash (hidden until fired)
     const flashMat = new THREE.MeshBasicMaterial({
@@ -134,11 +147,18 @@ export class WeaponViewModel {
     this.root.add(g);
   }
 
+  setADS(active, isSniper) {
+    this._aiming = !!active;
+    this._sniperAim = !!(active && isSniper);
+  }
+
   triggerRecoil(amount = 0.1) {
-    this._recoil = Math.min(1, this._recoil + 0.5 + amount * 2);
-    if (this._muzzle && this._cat !== 'melee') {
-      this._muzzleTimer = 0.05;
+    if (this._cat === 'melee') {
+      this._swing = 0.28; // play a swing arc instead of recoil
+      return;
     }
+    this._recoil = Math.min(1, this._recoil + 0.5 + amount * 2);
+    if (this._muzzle) this._muzzleTimer = 0.05;
   }
 
   update(dt, player, weapon) {
@@ -146,24 +166,43 @@ export class WeaponViewModel {
     if (!this.model) return;
     this._t += dt;
 
+    // Blend hip <-> aim pose
+    const aimTarget = this._aiming ? 1 : 0;
+    this._adsT += (aimTarget - this._adsT) * Math.min(1, dt * 14);
+    this.root.position.lerpVectors(this._hipPos, this._aimPos, this._adsT);
+    // Sniper hides its viewmodel while scoped (the scope overlay fills the screen)
+    this.model.visible = !(this._sniperAim && this._adsT > 0.6);
+    const steady = 1 - this._adsT * 0.8; // steadier hands while aiming
+
     // Walk bob: scale with horizontal speed
     const vx = player?.body?.velocity?.x ?? 0;
     const vz = player?.body?.velocity?.z ?? 0;
     const speed = Math.min(1, Math.hypot(vx, vz) / 6);
     this._bob += dt * (6 + speed * 8);
-    const bobY = Math.sin(this._bob * 2) * 0.006 * speed;
-    const bobX = Math.cos(this._bob) * 0.006 * speed;
+    const bobY = Math.sin(this._bob * 2) * 0.006 * speed * steady;
+    const bobX = Math.cos(this._bob) * 0.006 * speed * steady;
 
     // Idle sway (breathing)
-    const swayY = Math.sin(this._t * 1.3) * 0.004;
-    const swayX = Math.cos(this._t * 0.9) * 0.004;
+    const swayY = Math.sin(this._t * 1.3) * 0.004 * steady;
+    const swayX = Math.cos(this._t * 0.9) * 0.004 * steady;
 
     // Recoil kick: push back (+Z) and tilt up, decay via spring
     this._recoil = Math.max(0, this._recoil - dt * 6);
     const rk = this._recoil * this._recoil;
 
-    this.model.position.set(bobX + swayX, bobY + swayY, rk * 0.06);
-    this.model.rotation.set(-rk * 0.35, swayX * 0.5, 0);
+    // Melee swing arc: quick down-and-across chop
+    let swX = 0, swY = 0, swZ = 0, swRotX = 0, swRotZ = 0;
+    if (this._swing > 0) {
+      this._swing = Math.max(0, this._swing - dt);
+      const p = 1 - this._swing / 0.28;         // 0..1 through the swing
+      const arc = Math.sin(p * Math.PI);        // rise and fall
+      swRotZ = -arc * 1.2;
+      swRotX = arc * 0.7;
+      swX = -arc * 0.12; swZ = -arc * 0.1;
+    }
+
+    this.model.position.set(bobX + swayX + swX, bobY + swayY + swY, rk * 0.06 + swZ);
+    this.model.rotation.set(-rk * 0.35 + swRotX, swayX * 0.5, swRotZ);
 
     // Muzzle flash decay + random flicker
     if (this._muzzleTimer > 0) {
