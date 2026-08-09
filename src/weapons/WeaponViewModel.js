@@ -44,7 +44,7 @@ export class WeaponViewModel {
   }
 
   _cyl(r1, r2, h, mat, x = 0, y = 0, z = 0, rotX = Math.PI / 2) {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, 10), mat);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, 24), mat);
     m.position.set(x, y, z);
     m.rotation.x = rotX;
     m.renderOrder = 999;

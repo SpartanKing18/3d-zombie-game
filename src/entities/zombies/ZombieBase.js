@@ -129,7 +129,7 @@ export class ZombieBase {
     const shirtColor = new THREE.Color(opts.shirtColor ?? new THREE.Color().setHSL(Math.random(), 0.22 + Math.random() * 0.2, 0.15 + Math.random() * 0.14).getHex());
     const pantsColor = new THREE.Color(opts.pantsColor ?? [0x2e3440, 0x3a3630, 0x2a3038, 0x403a30, 0x24272e][Math.floor(Math.random() * 5)]);
 
-    const skinMat  = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.78, metalness: 0, emissive: skinColor.clone().multiplyScalar(0.12), emissiveIntensity: 0.5 });
+    const skinMat  = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.72, metalness: 0, emissive: skinColor.clone().multiplyScalar(0.12), emissiveIntensity: 0.5, envMapIntensity: 0.5 });
     // Slightly darker skin for joints/recesses — fakes ambient occlusion & muscle definition
     const skinDark = new THREE.MeshStandardMaterial({ color: skinColor.clone().multiplyScalar(0.72), roughness: 0.82, metalness: 0 });
     const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.95, metalness: 0 });
@@ -149,9 +149,10 @@ export class ZombieBase {
 
     // High-detail geometry helpers. `detail` scales segment counts so each body is
     // a dense, smooth mesh (~15k triangles — comfortably above the 10k target)
-    // with no visible faceting on the organic forms, while staying performant for
-    // large hordes. Variants may pass a higher `detail` for hero/boss zombies.
-    const DET = opts.detail ?? 0.68;
+    // with no visible faceting on the organic forms. Tuned for max realism on
+    // capable hardware — each body is ~45-55k triangles. Variants may pass a
+    // higher `detail` for hero/boss zombies.
+    const DET = opts.detail ?? 1.35;
     const R    = (n) => Math.max(3, Math.round(n * DET));
     const SPH  = (r, w = 24, h = 18) => new THREE.SphereGeometry(r, R(w), R(h));
     const CAP  = (r, len, cs = 6, rs = 22) => new THREE.CapsuleGeometry(r, len, R(cs), R(rs));

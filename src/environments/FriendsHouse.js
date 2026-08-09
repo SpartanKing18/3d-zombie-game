@@ -3144,6 +3144,10 @@ export class FriendsHouse {
     };
     setTimeout(genContent, 2500);
 
+    // Suburban neighborhood (streets + houses) around the exit — built now, while
+    // still behind the house walls, so stepping outside lands on a street.
+    try { this.game.neighborhood?.build(); } catch (e) { console.error('[Neighborhood]', e); }
+
     // Loot crates outside
     setTimeout(() => this._spawnOutdoorLootCrates(0, 0), 3500);
   }

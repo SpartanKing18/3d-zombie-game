@@ -15,6 +15,7 @@ import { ChunkManager } from '../world/ChunkManager.js';
 import { BuildingGenerator } from '../world/BuildingGenerator.js';
 import { FurnitureGenerator } from '../world/FurnitureGenerator.js';
 import { TreeGenerator } from '../world/TreeGenerator.js';
+import { NeighborhoodBuilder } from '../world/NeighborhoodBuilder.js';
 import { DayNightCycle } from '../world/DayNightCycle.js';
 import { WeatherSystem } from '../world/WeatherSystem.js';
 import { DebugOverlay } from '../utils/DebugOverlay.js';
@@ -81,6 +82,7 @@ export class Game {
     this.furnitureGenerator = new FurnitureGenerator(this);
     this.buildingGenerator = new BuildingGenerator(this, this.terrainGenerator, this.furnitureGenerator);
     this.treeGenerator = new TreeGenerator(this);
+    this.neighborhood = new NeighborhoodBuilder(this);
     this.chunkManager = new ChunkManager(this, this.terrainGenerator);
 
     this.player = new Player(this);

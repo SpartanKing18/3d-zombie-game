@@ -161,9 +161,9 @@ export class ZombieManager {
       ? (Date.now() - this.game.survivalStartTime) / 1000
       : 0;
     const diffMult = Math.min(3, 1 + elapsed / 180); // ramps to 3× over 6 minutes
-    // Cap the live horde lower now that each zombie is a high-poly (~16k tri) model,
-    // to keep draw-calls/triangles reasonable on modest hardware.
-    const dynamicMax   = Math.min(48, Math.floor(12 + elapsed / 22));
+    // Cap the live horde lower now that each zombie is a very high-poly (~50k tri)
+    // model, to keep draw-calls/triangles reasonable. Raise this if your GPU allows.
+    const dynamicMax   = Math.min(38, Math.floor(12 + elapsed / 24));
     const dynamicInterval = Math.max(1.0, this.spawnInterval / diffMult);
 
     this.spawnTimer -= deltaTime;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 export class Scene {
   constructor() {
@@ -12,11 +13,28 @@ export class Scene {
 
     this.setupRenderer();
     this.setupCamera();
+    this.setupEnvironment();
     this.setupSky();
     this.setupStars();
     this.setupLights();
     this.setupClouds();
     this.setupEventListeners();
+  }
+
+  // Image-based lighting: a one-time PMREM from a neutral room, assigned as
+  // scene.environment. Gives every MeshStandardMaterial (zombies, houses, weapons,
+  // trees, terrain) realistic soft ambient reflections instead of flat shading.
+  setupEnvironment() {
+    try {
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      pmrem.compileEquirectangularShader?.();
+      const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      this.scene.environment = envTex;
+      this._envTexture = envTex;
+      pmrem.dispose();
+    } catch (e) {
+      console.warn('[Scene] IBL environment unavailable:', e?.message);
+    }
   }
 
   setupRenderer() {
@@ -275,8 +293,8 @@ export class Scene {
     this.sunLight = new THREE.DirectionalLight(0xfffaee, 2.0);
     this.sunLight.position.set(200, 300, 100);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 2048;
-    this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.mapSize.width = 4096;
+    this.sunLight.shadow.mapSize.height = 4096;
     this.sunLight.shadow.camera.left = -120;
     this.sunLight.shadow.camera.right = 120;
     this.sunLight.shadow.camera.top = 120;
