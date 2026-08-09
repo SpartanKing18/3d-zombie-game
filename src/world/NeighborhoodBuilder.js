@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { Textures } from '../utils/Textures.js';
 
 // Builds a persistent suburban neighborhood in the flat zone around the origin so
 // stepping out the house's front door lands the player on a real street lined with
@@ -32,14 +33,18 @@ export class NeighborhoodBuilder {
   _mats() {
     if (this._m) return this._m;
     const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0, ...o });
+    // Shared photographic textures (map + normalMap) for real surface detail
+    const roadTex = Textures.road(9);
+    const concTex = Textures.concrete(5);
+    const wallTex = Textures.wall(2.2);
     this._m = {
-      asphalt:  std(0x2b2d31, { roughness: 0.96 }),
-      line:     new THREE.MeshStandardMaterial({ color: 0xd8c94a, roughness: 0.8, emissive: 0x2a2408, emissiveIntensity: 0.3 }),
-      concrete: std(0x9a9a94, { roughness: 0.95 }),
+      asphalt:  std(0x6a6d72, { roughness: 0.96, ...roadTex }),
+      line:     new THREE.MeshStandardMaterial({ color: 0x8a7f38, roughness: 0.85 }), // worn paint, no glow
+      concrete: std(0xb8b8b2, { roughness: 0.95, ...concTex }),
       curb:     std(0x82827c),
       grass:    std(0x4a6a34, { roughness: 1 }),
       roof:     [std(0x6a2e26), std(0x3a3f46), std(0x4a3a2c), std(0x2f3a48), std(0x5a4436)],
-      siding:   [std(0xb7a98c), std(0x8a9a8c), std(0xc0b7a0), std(0x9a8f80), std(0xa8b0b4), std(0xc7a98a), std(0x8f9aa4)],
+      siding:   [std(0xd8cbb0, wallTex), std(0xb6c2b4, wallTex), std(0xe0d6c0, wallTex), std(0xc0b6a4, wallTex), std(0xc8d0d4, wallTex), std(0xe4c8ac, wallTex), std(0xb4c0c8, wallTex)],
       trim:     std(0xe8e4d8),
       door:     [std(0x5a3a26), std(0x2e4636), std(0x6a2222), std(0x28324a)],
       glass:    new THREE.MeshStandardMaterial({ color: 0x223028, roughness: 0.15, metalness: 0.1, emissive: 0x1a2620, emissiveIntensity: 0.25 }),

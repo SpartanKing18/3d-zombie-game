@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { SimplexNoise } from 'simplex-noise';
+import { Textures } from '../utils/Textures.js';
 
 export class TerrainGenerator {
   constructor(game) {
@@ -74,11 +75,18 @@ export class TerrainGenerator {
     geometry.attributes.color.needsUpdate = true;
     geometry.attributes.normal.needsUpdate = true;
 
+    // Photographic ground detail (shared across chunks). map multiplies the biome
+    // vertex colours so the terrain keeps its colour but gains real surface texture
+    // + relief from the normal map, instead of a flat solid shade.
+    const gt = Textures.ground(20);
     const material = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.88,
+      map: gt.map,
+      normalMap: gt.normalMap,
+      normalScale: new THREE.Vector2(0.7, 0.7),
+      roughness: 0.95,
       metalness: 0.0,
-      envMapIntensity: 0.3,
+      envMapIntensity: 0.35,
       side: THREE.FrontSide
     });
 

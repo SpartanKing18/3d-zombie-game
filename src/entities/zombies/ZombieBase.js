@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { Pathfinder } from '../../utils/Pathfinder.js';
+import { Textures } from '../../utils/Textures.js';
 
 // Human-readable names for the internal snake_case zombie type ids. Used by the
 // death screen and kill feed so the player never sees "Killed by acid_spitter".
@@ -129,9 +130,13 @@ export class ZombieBase {
     const shirtColor = new THREE.Color(opts.shirtColor ?? new THREE.Color().setHSL(Math.random(), 0.22 + Math.random() * 0.2, 0.15 + Math.random() * 0.14).getHex());
     const pantsColor = new THREE.Color(opts.pantsColor ?? [0x2e3440, 0x3a3630, 0x2a3038, 0x403a30, 0x24272e][Math.floor(Math.random() * 5)]);
 
-    const skinMat  = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.72, metalness: 0, emissive: skinColor.clone().multiplyScalar(0.12), emissiveIntensity: 0.5, envMapIntensity: 0.5 });
+    // Photographic skin: a real texture map (pores/mottling) + normal map (bumps,
+    // muscle/skin relief) tinted by the decayed skin colour — the biggest lever
+    // against the flat "cartoon" look on the thing the player looks at most.
+    const skinTex = Textures.skin(2);
+    const skinMat  = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.82, metalness: 0, map: skinTex.map, normalMap: skinTex.normalMap, normalScale: new THREE.Vector2(0.8, 0.8), emissive: skinColor.clone().multiplyScalar(0.1), emissiveIntensity: 0.4, envMapIntensity: 0.5 });
     // Slightly darker skin for joints/recesses — fakes ambient occlusion & muscle definition
-    const skinDark = new THREE.MeshStandardMaterial({ color: skinColor.clone().multiplyScalar(0.72), roughness: 0.82, metalness: 0 });
+    const skinDark = new THREE.MeshStandardMaterial({ color: skinColor.clone().multiplyScalar(0.72), roughness: 0.85, metalness: 0, map: skinTex.map, normalMap: skinTex.normalMap, normalScale: new THREE.Vector2(0.8, 0.8) });
     const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.95, metalness: 0 });
     const pantsMat = new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.95, metalness: 0 });
     const goreMat  = new THREE.MeshStandardMaterial({ color: 0x6a1410, roughness: 0.6, metalness: 0, emissive: 0x1a0303, emissiveIntensity: 0.6 });
