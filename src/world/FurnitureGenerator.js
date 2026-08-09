@@ -14,7 +14,12 @@ export class FurnitureGenerator {
       const z = (Math.random() - 0.5) * (building.depth - 2);
       const y = 0.5;
 
-      const types = ['table', 'chair', 'bed', 'shelf', 'crate', 'barrel'];
+      // Procedural types (crate/barrel) + model-backed types (registered in the
+      // furniture manifest). Unregistered model types simply produce nothing, so
+      // only keep ones that have a model.
+      const types = ['table', 'chair', 'bed', 'shelf', 'crate', 'barrel',
+                     'sofa', 'desk', 'cabinet', 'plant', 'lamp',
+                     'fridge', 'stove', 'sink', 'toilet', 'bathtub'];
       const type = types[Math.floor(Math.random() * types.length)];
 
       this.createFurniture(building.x + x, building.y + y, building.z + z, type);
@@ -156,7 +161,9 @@ export class FurnitureGenerator {
     const model = this.game.furnitureModelLoader?.createModel?.(type);
     if (model) {
       group.add(model);
-      group.position.set(x, y, z);
+      // Callers pass y as the procedural mesh CENTRE (base = y-0.5 = floor). The
+      // model is ground-aligned (base at 0), so drop it 0.5 to rest on the floor.
+      group.position.set(x, y - 0.5, z);
       this.game.scene.addObject(group);
       this.furniture.push({ mesh: group, type, position: { x, y, z } });
       return;

@@ -1,6 +1,16 @@
 {
   "table": "table.glb",
   "chair": "chair.glb",
-  "bed":   "bed.glb",
-  "shelf": "shelf.glb"
+  "bed": "bed.glb",
+  "shelf": "shelf.glb",
+  "sofa": "sofa.glb",
+  "desk": "desk.glb",
+  "cabinet": "cabinet.glb",
+  "plant": "plant.glb",
+  "lamp": "lamp.glb",
+  "fridge": "fridge.glb",
+  "stove": "stove.glb",
+  "sink": "sink.glb",
+  "toilet": "toilet.glb",
+  "bathtub": "bathtub.glb"
 }
