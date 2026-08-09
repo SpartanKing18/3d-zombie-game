@@ -52,6 +52,7 @@ export class WeaponBase {
     // Reuse a single ray direction vector per fire() call.
     // Aiming down sights tightens the spread for more precise fire.
     if (!this._rayDir) this._rayDir = new THREE.Vector3();
+    if (game) game._fireHitZombie = false; // set true by raycast if this shot connects
     const spread = this.spread * (game?._adsActive ? 0.35 : 1);
     for (let i = 0; i < this.pellets; i++) {
       this._rayDir.copy(direction);
@@ -130,6 +131,7 @@ export class WeaponBase {
 
       if (zombie) {
         // Hit a zombie
+        if (game) game._fireHitZombie = true;
         // Detect headshot: hitpoint above the zombie's neck line (per-type height)
         const hitY = hit.point?.y ?? 0;
         const zombieY = zombie.position?.y ?? 0;

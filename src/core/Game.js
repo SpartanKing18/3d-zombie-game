@@ -675,18 +675,19 @@ export class Game {
       }
     }
 
-    // 6. Item pickup via F key when no door is nearby
-    const nearItem = this.worldItemSystem?.getNearbyItem(px, py, pz, 2.0);
-    if (nearItem) {
-      const def = this.inventorySystem?.itemTypes?.[nearItem.type];
-      const itemName = def?.name ?? nearItem.type;
+    // 6. Item pickup — only when the crosshair is ON an item (look-at), not merely
+    // nearby, so the prompt doesn't show constantly in item-filled rooms.
+    const lookItem = this.worldItemSystem?.getLookedAtItem?.(this.scene.getCamera(), this.player.getPosition(), 4.5);
+    if (lookItem) {
+      const def = this.inventorySystem?.itemTypes?.[lookItem.type];
+      const itemName = def?.name ?? lookItem.type;
       if (prompt) {
         prompt.style.display = 'flex';
         if (label) label.textContent = `[F] Pick Up ${itemName}`;
       }
       if (fNow && !this._fWasDown) {
         this._fWasDown = true;
-        this.worldItemSystem.tryPickup(px, py, pz, 2.0);
+        this.worldItemSystem.pickupItem(lookItem);
       } else if (!fNow) { this._fWasDown = false; }
       return;
     }
@@ -1038,7 +1039,16 @@ export class Game {
   handleWeaponInput() {
     if (this.inventorySystem?.isOpen) return;
 
-    if (this.inputManager.mouse.leftClick && this.inputManager.isPointerLocked()) {
+    const held = this.inputManager.mouse.leftClick && this.inputManager.isPointerLocked();
+    const weapon = this.weaponManager?.getCurrentWeapon?.();
+    const fullAuto = weapon?.fireMode === 'full';
+    // Only full-auto weapons fire while held. Everything else (pistol/shotgun/
+    // sniper/melee) fires once per click — require a fresh press. This also stops
+    // the melee combo from ramping infinitely while the button is held.
+    const trigger = held && (fullAuto || !this._lmbWasDown);
+    this._lmbWasDown = this.inputManager.mouse.leftClick;
+
+    if (trigger) {
       // Ray must start at the eye, not the body center — otherwise shots land
       // ~0.75m below the crosshair at close range
       const position = new THREE.Vector3();
@@ -1046,72 +1056,50 @@ export class Game {
       const direction = new THREE.Vector3();
       this.camera.getWorldDirection(direction);
 
-      // Stealth kill check: crouching + behind zombie + melee weapon
-      const weapon = this.weaponManager?.getCurrentWeapon?.();
-      const isMelee = weapon?.type === 'melee' || weapon?.name?.toLowerCase().includes('knife') || weapon?.name?.toLowerCase().includes('bat') || weapon?.name?.toLowerCase().includes('sword');
+      const isMeleeWeapon = weapon?.type === 'melee' || ['knife','bat','sword','axe','machete','crowbar','pipe','poker','cleaver','katana','hatchet'].some(k => weapon?.name?.toLowerCase().includes(k));
+
+      // Stealth kill: crouching + behind a zombie + melee
       let stealthKillApplied = false;
-      if (isMelee && this.player?.isCrouching) {
-        const pPos = position;
-        const pDir = new THREE.Vector3();
-        this.camera.getWorldDirection(pDir);
-        const zombies = this.zombieManager?.getZombies() ?? [];
-        for (const z of zombies) {
-          const dx = z.position.x - pPos.x, dz = z.position.z - pPos.z;
-          const dist = Math.sqrt(dx*dx + dz*dz);
-          if (dist < 2.2 && z.isAlive?.()) {
+      if (isMeleeWeapon && this.player?.isCrouching) {
+        const pDir = direction;
+        for (const z of (this.zombieManager?.getZombies() ?? [])) {
+          const dx = z.position.x - position.x, dz = z.position.z - position.z;
+          if (dx * dx + dz * dz < 2.2 * 2.2 && z.isAlive?.()) {
             const zombieFacing = new THREE.Vector3(Math.sin(z.mesh?.rotation.y ?? 0), 0, Math.cos(z.mesh?.rotation.y ?? 0));
-            const isBehind = pDir.dot(zombieFacing) > 0.5;
-            if (isBehind) {
-              z.health = 0;
-              stealthKillApplied = true;
-              break;
-            }
+            if (pDir.dot(zombieFacing) > 0.5) { z.health = 0; stealthKillApplied = true; break; }
           }
         }
       }
       if (stealthKillApplied) this.player._pendingStealthKill = true;
 
-      // Berserker perk: +25% damage below 30% HP
+      // Damage multipliers for THIS swing: berserker (<30% HP) × melee combo.
+      // Applied around fire() from an immutable base so nothing sticks permanently.
       const berserkerActive = this.player?._berserkerPerk && this.player.health < this.player.maxHealth * 0.3;
-      if (berserkerActive && weapon) {
-        weapon._berserkerOrig = weapon._berserkerOrig ?? weapon.damage;
-        weapon.damage = weapon._berserkerOrig * 1.25;
-      } else if (weapon?._berserkerOrig) {
-        weapon.damage = weapon._berserkerOrig;
-        delete weapon._berserkerOrig;
+      const comboMult = isMeleeWeapon ? Math.min(3.0, 1.0 + (this._meleeCombo ?? 0) * 0.25) : 1;
+      if (weapon) {
+        const base = weapon._baseDamage ?? (weapon._baseDamage = weapon.damage);
+        weapon.damage = base * (berserkerActive ? 1.25 : 1) * comboMult;
       }
 
-      this.weaponManager.fireCurrentWeapon(position, direction);
-      // Gunshots emit a loud noise event that wakes nearby zombies
-      this._emitNoise(position.x, position.z, 40);
+      const fired = this.weaponManager.fireCurrentWeapon(position, direction);
+      if (weapon) weapon.damage = weapon._baseDamage; // restore immediately
 
-      // Melee combo system
-      const isMeleeWeapon = weapon?.type === 'melee' || ['knife','bat','sword','axe','machete','crowbar','pipe','poker','cleaver','katana','hatchet'].some(k => weapon?.name?.toLowerCase().includes(k));
-      if (isMeleeWeapon) {
-        // Extend combo window
-        clearTimeout(this._meleeComboReset);
-        this._meleeComboTimer = Date.now();
-        this._meleeCombo = (this._meleeCombo ?? 0) + 1;
-        this._meleeComboReset = setTimeout(() => {
-          this._meleeCombo = 0;
-          const el = document.getElementById('melee-combo');
-          if (el) { el.style.opacity = '0'; }
-        }, 1500); // 1.5s window between hits to maintain combo
-        // Combo damage multiplier
-        const comboMult = Math.min(3.0, 1.0 + (this._meleeCombo - 1) * 0.25);
-        // Apply multiplier to current weapon damage temporarily
-        if (weapon && this._meleeCombo > 1) {
-          // Base damage must exclude the berserker boost, or the boosted value gets
-          // captured as "original" and sticks forever
-          const origDmg = weapon._origDamage ?? weapon._berserkerOrig ?? weapon.damage;
-          weapon._origDamage = origDmg;
-          weapon.damage = origDmg * comboMult * (berserkerActive ? 1.25 : 1);
-          setTimeout(() => {
-            if (weapon._origDamage) { weapon.damage = weapon._origDamage; delete weapon._origDamage; }
-          }, 100);
+      if (fired) {
+        // Gunshots/loud swings wake nearby zombies
+        this._emitNoise(position.x, position.z, isMeleeWeapon ? 8 : 40);
+
+        // Melee combo builds ONLY on swings that actually connect with a zombie,
+        // so holding/clicking in the air never ramps it.
+        if (isMeleeWeapon && this._fireHitZombie) {
+          clearTimeout(this._meleeComboReset);
+          this._meleeCombo = (this._meleeCombo ?? 0) + 1;
+          this._meleeComboReset = setTimeout(() => {
+            this._meleeCombo = 0;
+            const el = document.getElementById('melee-combo');
+            if (el) el.style.opacity = '0';
+          }, 1500); // combo resets after 1.5s without a connecting hit
+          this._updateComboHUD(this._meleeCombo, Math.min(3.0, 1.0 + this._meleeCombo * 0.25));
         }
-        // Update combo HUD
-        this._updateComboHUD(this._meleeCombo, comboMult);
       }
     }
 

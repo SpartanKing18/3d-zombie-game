@@ -853,8 +853,10 @@ export class WorldItemSystem {
     if (this._hoverCard && uiBlocked) {
       this._hoverCard.classList.remove('ihc-show');
     } else if (this._hoverCard) {
-      const nearest = playerPos
-        ? this.getNearbyItem(playerPos.x, playerPos.y, playerPos.z, 2)
+      // Only show for the item the crosshair is actually pointing at (look-at)
+      const camera = this.game.scene?.getCamera?.();
+      const nearest = (playerPos && camera)
+        ? this.getLookedAtItem(camera, playerPos, 4.5)
         : null;
       if (nearest) {
         const def = this.game.inventorySystem?.itemTypes?.[nearest.type];
@@ -927,10 +929,42 @@ export class WorldItemSystem {
     return nearest;
   }
 
+  // The item the crosshair is pointing at (within reach). Used for the hover
+  // prompt/card and F pickup so they only show when you actually LOOK at an item,
+  // not merely stand near one. Pre-filters by proximity so we never raycast the
+  // hundreds of scattered item meshes.
+  getLookedAtItem(camera, playerPos, maxDist = 4.5) {
+    if (!camera || !playerPos) return null;
+    const md2 = (maxDist + 1.5) * (maxDist + 1.5);
+    const near = [];
+    for (const item of this.items) {
+      const dx = item.mesh.position.x - playerPos.x;
+      const dy = item.mesh.position.y - playerPos.y;
+      const dz = item.mesh.position.z - playerPos.z;
+      if (dx * dx + dy * dy + dz * dz < md2) near.push(item);
+    }
+    if (!near.length) return null;
+    if (!this._itemRay) { this._itemRay = new THREE.Raycaster(); this._rayCenter = new THREE.Vector2(0, 0); }
+    camera.updateMatrixWorld(); // ensure the ray uses the current camera transform
+    this._itemRay.setFromCamera(this._rayCenter, camera);
+    this._itemRay.far = maxDist;
+    const meshes = [];
+    for (const it of near) {
+      it.mesh.updateMatrixWorld(); // near items only — keep raycast accurate regardless of render timing
+      it.mesh.traverse(o => { if (o.isMesh) { o.userData._ownerItem = it; meshes.push(o); } });
+    }
+    const hits = this._itemRay.intersectObjects(meshes, false);
+    return hits.length ? (hits[0].object.userData._ownerItem ?? null) : null;
+  }
+
   // ─── Pickup ───────────────────────────────────────────────────────────────
 
   tryPickup(playerX, playerY, playerZ, range = 1.8) {
-    const item = this.getNearbyItem(playerX, playerY, playerZ, range);
+    return this.pickupItem(this.getNearbyItem(playerX, playerY, playerZ, range));
+  }
+
+  // Pick up a specific item (used by look-at F pickup and click pickup).
+  pickupItem(item) {
     if (!item) return false;
 
     const ok = this.game.inventorySystem?.addItem(item.type, item.quantity) ?? false;

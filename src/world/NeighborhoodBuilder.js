@@ -358,10 +358,15 @@ export class NeighborhoodBuilder {
 
   // ─── Cleanup (on restart) ───────────────────────────────────────────────────
   dispose() {
+    // Dispose geometry, and any per-instance (non-shared-palette) materials.
+    const shared = new Set(Object.values(this._m ?? {}).flat());
     for (const o of this._objects) {
       this.game.scene.removeObject(o);
       o.traverse?.(c => {
-        if (c.isMesh) { c.geometry?.dispose?.(); }
+        if (!c.isMesh) return;
+        c.geometry?.dispose?.();
+        const mats = Array.isArray(c.material) ? c.material : [c.material];
+        for (const m of mats) if (m && !shared.has(m)) m.dispose?.();
       });
     }
     for (const b of this._bodies) this.game.physicsWorld.removeBody(b);

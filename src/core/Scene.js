@@ -28,10 +28,12 @@ export class Scene {
     try {
       const pmrem = new THREE.PMREMGenerator(this.renderer);
       pmrem.compileEquirectangularShader?.();
-      const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      const roomEnv = new RoomEnvironment();
+      const envTex = pmrem.fromScene(roomEnv, 0.04).texture;
       this.scene.environment = envTex;
       this._envTexture = envTex;
       pmrem.dispose();
+      roomEnv.dispose?.(); // free the temporary room scene's GPU resources
     } catch (e) {
       console.warn('[Scene] IBL environment unavailable:', e?.message);
     }
