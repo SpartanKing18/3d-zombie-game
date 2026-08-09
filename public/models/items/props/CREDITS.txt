@@ -1,0 +1,14 @@
+crowbar  /m/1orHe0kCc1  CC0
+machete  /m/0g8M6yYtE4  CC0
+katana  /m/15A7InejC7  CC0
+cleaver  /m/0g8M6yYtE4  CC0
+hatchet  /m/0kgjDkCRmx  CC0
+bandage  /m/5Zz0LgGK4A  CC0
+wrench  /m/03iCPYXZpJ  CC0
+syringe  /m/d8HW8TmA79  CC0
+golf  /m/26nMm9C7Bw  CC0
+bloodbag  /m/2g9Jm7kvIU  CC0
+wrench2  /m/1qHVKaDWub  CC0
+syringe /m/0g8M6yYtE4 CC0
+wrench /m/1qHVKaDWub CC0
+crowbar /m/14BId3kEYS CC0
