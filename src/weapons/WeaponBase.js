@@ -22,8 +22,8 @@ export class WeaponBase {
     this.durability = 100;
 
     // Cached bullet-hole geometry + material — created once per weapon instance
-    this._holeGeo = new THREE.SphereGeometry(0.06, 4, 4);
-    this._holeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    this._holeGeo = new THREE.CircleGeometry(0.05, 10); // flat decal, not a floating ball
+    this._holeMat = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 });
     // Reuse raycaster across all shots — avoids per-shot allocation
     this._raycaster = new THREE.Raycaster();
     this._raycaster.near = 0;
@@ -162,17 +162,22 @@ export class WeaponBase {
       } else {
         // Hit terrain/building - only create bullet hole if not sky/far object
         if (hit.distance < 500) {
-          this.createBulletHole(hit.point, game);
+          this.createBulletHole(hit.point, game, direction);
           game?.particleSystem?.createBulletImpact?.(hit.point);
         }
       }
     }
   }
 
-  createBulletHole(position, game) {
+  createBulletHole(position, game, rayDir) {
     const hole = new THREE.Mesh(this._holeGeo, this._holeMat);
     hole.userData.noHit = true;
     hole.position.copy(position);
+    // Lie flat on the hit surface, facing the shooter (rather than a half-buried ball)
+    if (rayDir) {
+      hole.position.addScaledVector(rayDir, -0.02);
+      hole.lookAt(hole.position.x - rayDir.x, hole.position.y - rayDir.y, hole.position.z - rayDir.z);
+    }
     game.scene.addObject(hole);
     // Invalidate raycast cache so the hole doesn't get added to targets
     game._raycastTargetTime = 0;

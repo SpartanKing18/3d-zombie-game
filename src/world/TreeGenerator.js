@@ -91,7 +91,9 @@ export class TreeGenerator {
     const layers = Math.round(3 + Math.random() * 3);
     const maxR = (1.4 + Math.random() * 1.2) * scale;
     const layerH = trunkH * 0.55;
-    const pineColor = 0x1a4a1a + Math.round(Math.random() * 0x0a1a0a);
+    // Green foliage with subtle per-tree variation (HSL keeps the hue in the
+    // green range — adding hex numbers bled channels and produced blue/purple trees)
+    const pineColor = new THREE.Color().setHSL(0.30 + Math.random() * 0.04, 0.5, 0.14 + Math.random() * 0.06);
     const foliageMat = new THREE.MeshStandardMaterial({ color: pineColor, roughness: 0.95, metalness: 0 });
 
     for (let i = 0; i < layers; i++) {
@@ -113,8 +115,8 @@ export class TreeGenerator {
     const trunkR = (0.2 + Math.random() * 0.12) * scale;
     const canopyR = (2.0 + Math.random() * 1.5) * scale;
 
-    // Bark colour varies per tree
-    const barkHue = 0x3a2010 + Math.round(Math.random() * 0x201010);
+    // Bark colour varies per tree (brown hue range)
+    const barkHue = new THREE.Color().setHSL(0.07 + Math.random() * 0.03, 0.45, 0.11 + Math.random() * 0.05);
     const trunk = new THREE.Mesh(
       new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 8),
       new THREE.MeshStandardMaterial({ color: barkHue, roughness: 0.95, metalness: 0 })
@@ -123,8 +125,8 @@ export class TreeGenerator {
     trunk.castShadow = true;
     group.add(trunk);
 
-    // Main canopy sphere
-    const leafHue = 0x1a5010 + Math.round(Math.random() * 0x103818);
+    // Main canopy sphere — green hue range
+    const leafHue = new THREE.Color().setHSL(0.25 + Math.random() * 0.06, 0.5, 0.2 + Math.random() * 0.08);
     const leafMat = new THREE.MeshStandardMaterial({ color: leafHue, roughness: 0.9, metalness: 0 });
 
     const mainCanopy = new THREE.Mesh(

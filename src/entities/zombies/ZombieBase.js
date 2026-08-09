@@ -381,8 +381,11 @@ export class ZombieBase {
   createHealthBar() {
     const barGroup = new THREE.Group();
 
+    // depthWrite:false + renderOrder keeps the three planes layered correctly,
+    // while keeping depthTest ON so walls/cars/terrain occlude the bar (it no
+    // longer shows through solid geometry).
     // Outer border
-    const borderMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, depthTest: false });
+    const borderMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide, depthWrite: false });
     const border = new THREE.Mesh(new THREE.PlaneGeometry(0.84, 0.115), borderMat);
     border.renderOrder = 997;
     barGroup.add(border);
@@ -390,7 +393,7 @@ export class ZombieBase {
     // Dark background
     const bg = new THREE.Mesh(
       new THREE.PlaneGeometry(0.8, 0.08),
-      new THREE.MeshBasicMaterial({ color: 0x1a0505, side: THREE.DoubleSide, depthTest: false })
+      new THREE.MeshBasicMaterial({ color: 0x1a0505, side: THREE.DoubleSide, depthWrite: false })
     );
     bg.position.z = 0.001;
     bg.renderOrder = 998;
@@ -399,7 +402,7 @@ export class ZombieBase {
     // Health fill bar
     const fg = new THREE.Mesh(
       new THREE.PlaneGeometry(0.8, 0.07),
-      new THREE.MeshBasicMaterial({ color: 0x00ff44, side: THREE.DoubleSide, depthTest: false })
+      new THREE.MeshBasicMaterial({ color: 0x00ff44, side: THREE.DoubleSide, depthWrite: false })
     );
     fg.position.z = 0.002;
     fg.renderOrder = 999;
@@ -883,6 +886,7 @@ export class ZombieBase {
         } else {
           // Fade out instead of instant removal
           let fadeT = 0;
+          mesh.traverse(c => { if (c.isMesh) c.castShadow = false; }); // no solid shadow while fading
           const fadeTick = () => {
             if (!this._dead) return; // resurrected mid-fade — abort removal
             fadeT += 0.016;

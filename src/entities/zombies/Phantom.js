@@ -44,6 +44,8 @@ export class Phantom extends ZombieBase {
       mat.transparent = true;
       mat.opacity = this._baseOpacity;
     }
+    // A translucent ghost shouldn't throw a solid black shadow
+    group.traverse(c => { if (c.isMesh) c.castShadow = false; });
 
     this.finalizeMesh(group);
     // Floating offset — Phantom hovers slightly above the ground

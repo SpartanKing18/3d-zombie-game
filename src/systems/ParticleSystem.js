@@ -88,7 +88,8 @@ export class ParticleSystem {
 
   createSmoke(position, count = 4) {
     for (let i = 0; i < count; i++) {
-      const grey = 0x777777 + Math.floor(Math.random() * 0x222222);
+      const g = 0x77 + Math.floor(Math.random() * 0x33); // per-channel grey (no colour bleed)
+      const grey = (g << 16) | (g << 8) | g;
       const p = this._spawn(GEO.smoke, grey, position,
         _v.set((Math.random()-0.5)*1.5, 1 + Math.random()*1.5, (Math.random()-0.5)*1.5),
         2.5, 0, true, 0.5, false);

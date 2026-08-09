@@ -310,10 +310,11 @@ export class Scene {
     // frustum to follow the player (otherwise shadows only exist near the origin).
     this.scene.add(this.sunLight.target);
 
-    // Blue sky fill from opposite side
+    // Blue sky fill from opposite side (dimmed at night by DayNightCycle)
     const fillLight = new THREE.DirectionalLight(0x8ab4cc, 0.4);
     fillLight.position.set(-150, 100, -100);
     this.scene.add(fillLight);
+    this.fillLight = fillLight;
 
     this.directionalLight = this.sunLight;
   }

@@ -90,13 +90,18 @@ export class NeighborhoodBuilder {
       const cz = r.type === 'ew' ? r.z : (r.z0 + r.z1) / 2;
       const len = r.type === 'ew' ? (r.x1 - r.x0) : (r.z1 - r.z0);
 
+      // Slightly different heights per orientation so overlapping asphalt/dashes
+      // at intersections don't z-fight (EW sits just above NS).
+      const roadY = r.type === 'ew' ? 0.021 : 0.018;
+      const dashY = r.type === 'ew' ? 0.036 : 0.033;
+
       // Asphalt
       const road = new THREE.Mesh(
         r.type === 'ew' ? new THREE.PlaneGeometry(len, r.w) : new THREE.PlaneGeometry(r.w, len),
         M.asphalt
       );
       road.rotation.x = -Math.PI / 2;
-      road.position.set(cx, 0.02, cz);
+      road.position.set(cx, roadY, cz);
       road.receiveShadow = true; road.userData.noHit = true;
       this.game.scene.addObject(road); this._objects.push(road);
 
@@ -109,7 +114,7 @@ export class NeighborhoodBuilder {
           M.line
         );
         dash.rotation.x = -Math.PI / 2;
-        dash.position.set(r.type === 'ew' ? t : cx, 0.035, r.type === 'ew' ? cz : t);
+        dash.position.set(r.type === 'ew' ? t : cx, dashY, r.type === 'ew' ? cz : t);
         dash.userData.noHit = true;
         this.game.scene.addObject(dash); this._objects.push(dash);
       }
