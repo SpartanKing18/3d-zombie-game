@@ -46,14 +46,14 @@ export class NPC {
     const bodyColor = colors[this.type] || 0x8888ff;
 
     const bodyGeometry = new THREE.CylinderGeometry(0.4, 0.4, 1.4, 8);
-    const bodyMaterial = new THREE.MeshLambertMaterial({ color: bodyColor });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.9, metalness: 0 });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
 
     const headGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-    const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffcc99 });
+    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffcc99, roughness: 0.9, metalness: 0 });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 1;
     head.castShadow = true;

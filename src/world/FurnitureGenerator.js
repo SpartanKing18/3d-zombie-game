@@ -185,7 +185,7 @@ export class FurnitureGenerator {
     const group = new THREE.Group();
 
     const topGeometry = new THREE.BoxGeometry(2, 0.2, 1);
-    const topMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+    const topMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9, metalness: 0 });
     const top = new THREE.Mesh(topGeometry, topMaterial);
     top.position.y = 0.75;
     top.castShadow = true;
@@ -193,7 +193,7 @@ export class FurnitureGenerator {
     group.add(top);
 
     const legGeometry = new THREE.BoxGeometry(0.1, 0.7, 0.1);
-    const legMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
+    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9, metalness: 0 });
 
     for (let i = 0; i < 4; i++) {
       const leg = new THREE.Mesh(legGeometry, legMaterial);
@@ -211,7 +211,7 @@ export class FurnitureGenerator {
     const group = new THREE.Group();
 
     const seatGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
-    const seatMaterial = new THREE.MeshLambertMaterial({ color: 0xa0522d });
+    const seatMaterial = new THREE.MeshStandardMaterial({ color: 0xa0522d, roughness: 0.9, metalness: 0 });
     const seat = new THREE.Mesh(seatGeometry, seatMaterial);
     seat.position.y = 0.45;
     seat.castShadow = true;
@@ -240,14 +240,14 @@ export class FurnitureGenerator {
     const group = new THREE.Group();
 
     const frameGeometry = new THREE.BoxGeometry(1.2, 0.2, 2);
-    const frameMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
+    const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9, metalness: 0 });
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
     frame.position.y = 0.1;
     frame.castShadow = true;
     group.add(frame);
 
     const mattressGeometry = new THREE.BoxGeometry(1, 0.3, 1.8);
-    const mattressMaterial = new THREE.MeshLambertMaterial({ color: 0xd2691e });
+    const mattressMaterial = new THREE.MeshStandardMaterial({ color: 0xd2691e, roughness: 0.9, metalness: 0 });
     const mattress = new THREE.Mesh(mattressGeometry, mattressMaterial);
     mattress.position.y = 0.4;
     mattress.castShadow = true;
@@ -261,7 +261,7 @@ export class FurnitureGenerator {
     const group = new THREE.Group();
 
     const backGeometry = new THREE.BoxGeometry(0.5, 1.5, 0.2);
-    const backMaterial = new THREE.MeshLambertMaterial({ color: 0x654321 });
+    const backMaterial = new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9, metalness: 0 });
     const back = new THREE.Mesh(backGeometry, backMaterial);
     back.position.y = 0.75;
     back.castShadow = true;
@@ -283,7 +283,7 @@ export class FurnitureGenerator {
     const group = new THREE.Group();
 
     const crateGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-    const crateMaterial = new THREE.MeshLambertMaterial({ color: 0x8b6914 });
+    const crateMaterial = new THREE.MeshStandardMaterial({ color: 0x8b6914, roughness: 0.9, metalness: 0 });
     const crate = new THREE.Mesh(crateGeometry, crateMaterial);
     crate.position.y = 0.3;
     crate.castShadow = true;
@@ -297,7 +297,7 @@ export class FurnitureGenerator {
     const group = new THREE.Group();
 
     const barrelGeometry = new THREE.CylinderGeometry(0.35, 0.35, 0.8, 16);
-    const barrelMaterial = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+    const barrelMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9, metalness: 0 });
     const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
     barrel.position.y = 0.4;
     barrel.castShadow = true;

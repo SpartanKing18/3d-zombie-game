@@ -32,11 +32,13 @@ export class TerrainGenerator {
     geometry.rotateX(-Math.PI / 2);
 
     const positions = geometry.attributes.position.array;
+    const normals   = geometry.attributes.normal.array;
     // Float32Array (0.0–1.0) avoids all Uint8Array normalization issues
     const colors = new Float32Array(positions.length);
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const heightData = [];
+    const e = 0.75; // gradient sample distance for analytic normals
 
     for (let i = 0; i < positions.length; i += 3) {
       const x = positions[i];
@@ -48,6 +50,18 @@ export class TerrainGenerator {
       const height = this.getHeight(worldX, worldZ);
       positions[i + 1] = height;
 
+      // Analytic normal from the CONTINUOUS height field (not per-chunk triangles),
+      // so shared border vertices get identical normals in adjacent chunks — no seams.
+      const hL = this.getHeight(worldX - e, worldZ);
+      const hR = this.getHeight(worldX + e, worldZ);
+      const hD = this.getHeight(worldX, worldZ - e);
+      const hU = this.getHeight(worldX, worldZ + e);
+      let nx = hL - hR, ny = 2 * e, nz = hD - hU;
+      const inv = 1 / (Math.hypot(nx, ny, nz) || 1);
+      normals[i]     = nx * inv;
+      normals[i + 1] = ny * inv;
+      normals[i + 2] = nz * inv;
+
       const color = this.getTerrainColor(worldX, worldZ, height);
       colors[i]     = color.r / 255;
       colors[i + 1] = color.g / 255;
@@ -58,7 +72,7 @@ export class TerrainGenerator {
 
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;
-    geometry.computeVertexNormals();
+    geometry.attributes.normal.needsUpdate = true;
 
     const material = new THREE.MeshStandardMaterial({
       vertexColors: true,

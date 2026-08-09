@@ -128,8 +128,8 @@ export class BuildingGenerator {
   createWalls(building) {
     const group = new THREE.Group();
 
-    const wallMaterial = new THREE.MeshLambertMaterial({
-      color: new THREE.Color().setHSL(0.1, 0.3, 0.5)
+    const wallMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color().setHSL(0.1, 0.3, 0.5), roughness: 0.92, metalness: 0
     });
 
     const w = building.width;
@@ -165,8 +165,8 @@ export class BuildingGenerator {
   }
 
   createRoof(building) {
-    const roofMaterial = new THREE.MeshLambertMaterial({
-      color: new THREE.Color().setHSL(0.05, 0.4, 0.3)
+    const roofMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color().setHSL(0.05, 0.4, 0.3), roughness: 0.9, metalness: 0
     });
 
     const roofGeometry = new THREE.BoxGeometry(building.width, 0.5, building.depth);
@@ -181,8 +181,8 @@ export class BuildingGenerator {
   createDoors(building) {
     const group = new THREE.Group();
 
-    const doorMaterial = new THREE.MeshLambertMaterial({
-      color: new THREE.Color().setHSL(0.08, 0.6, 0.3)
+    const doorMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color().setHSL(0.08, 0.6, 0.3), roughness: 0.85, metalness: 0
     });
 
     const doorGeometry = new THREE.BoxGeometry(2, 2.5, 0.2);

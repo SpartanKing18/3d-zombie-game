@@ -71,21 +71,21 @@ export class VehicleBase {
     const group = new THREE.Group();
 
     const bodyGeometry = new THREE.BoxGeometry(this.width, this.height, this.length);
-    const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.9, metalness: 0 });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.castShadow = true;
     body.receiveShadow = true;
     group.add(body);
 
     const cabinGeometry = new THREE.BoxGeometry(this.width * 0.8, this.height * 0.5, this.length * 0.4);
-    const cabinMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    const cabinMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9, metalness: 0 });
     const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
     cabin.position.y = this.height * 0.5;
     cabin.castShadow = true;
     group.add(cabin);
 
     const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
-    const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9, metalness: 0 });
 
     const wheelPositions = [
       [-this.width / 2 - 0.2, -this.height / 2, this.length / 3],
