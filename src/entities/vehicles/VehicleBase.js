@@ -193,11 +193,31 @@ export class VehicleBase {
   }
 
   explode() {
+    if (this._exploded) return; // guard: takeDamage() and VehicleManager both call this
+    this._exploded = true;
+
+    this.game.particleSystem?.createExplosion?.(this.position.clone());
+
     if (this.mesh) {
       this.game.scene.removeObject(this.mesh);
+      // Dispose the chassis/cabin/wheel meshes' GPU resources.
+      this.mesh.traverse(o => {
+        if (!o.isMesh) return;
+        o.geometry?.dispose?.();
+        if (Array.isArray(o.material)) o.material.forEach(m => m.dispose?.());
+        else o.material?.dispose?.();
+      });
+      this.mesh = null;
+    }
+    // Remove the RaycastVehicle (chassis body + preStep listener + constraints),
+    // then also drop the chassis body added directly in setupPhysics.
+    if (this.vehicle) {
+      try { this.vehicle.removeFromWorld(this.game.physicsWorld.getWorld()); } catch (e) { /* already removed */ }
+      this.vehicle = null;
     }
     if (this.body) {
       this.game.physicsWorld.removeBody(this.body);
+      this.body = null;
     }
   }
 

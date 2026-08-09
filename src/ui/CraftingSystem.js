@@ -521,7 +521,20 @@ export class CraftingSystem {
       }
     }
 
-    this.inventory.addItem(recipe.result, recipe.qty ?? 1);
+    const added = this.inventory.addItem(recipe.result, recipe.qty ?? 1);
+    if (!added) {
+      // Inventory full: drop the crafted result at the player's feet rather than
+      // silently destroying it (the ingredients were already consumed above).
+      const p = this.game.player?.getPosition?.();
+      if (p && this.game.worldItemSystem?.spawnItem) {
+        const gy = this.game.inFriendHouse
+          ? p.y - 0.85
+          : (this.game.terrainGenerator?.getHeightAt(p.x, p.z) ?? p.y - 0.85);
+        this.game.worldItemSystem.spawnItem(recipe.result, p.x, gy + 0.3, p.z, recipe.qty ?? 1);
+      }
+      const notif = document.getElementById('loot-notification');
+      if (notif) { notif.textContent = '🎒 Inventory full — crafted item dropped at your feet'; notif.style.color = '#ffcc44'; notif.classList.remove('show'); void notif.offsetWidth; notif.classList.add('show'); }
+    }
     this.renderRecipes();
     this.game._craftCount = (this.game._craftCount ?? 0) + 1;
     // XP for crafting

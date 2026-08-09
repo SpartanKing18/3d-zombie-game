@@ -1157,19 +1157,10 @@ export class Game {
       this._placeElectroTrap();
     } else if (!this.inputManager.isKeyPressed('y')) { this._yWasDown = false; }
 
-    if (this.inputManager.isKeyPressed('e') && !this._eWasDown) {
-      this._eWasDown = true;
-      this.weaponManager.switchToNextWeapon();
-      if (this._adsActive) {
-        this._adsActive = false;
-        this.scene.getCamera().fov = 75;
-        this.scene.getCamera().updateProjectionMatrix();
-        const scopeEl = document.getElementById('scope-overlay');
-        if (scopeEl) scopeEl.style.display = 'none';
-      }
-    } else if (!this.inputManager.isKeyPressed('e')) {
-      this._eWasDown = false;
-    }
+    // NOTE: 'E' is the Inventory key (handled in InventorySystem) — it must NOT
+    // also cycle weapons here, or a single press both opened the inventory and
+    // switched weapons. Weapon cycling remains on Q (previous) and the scroll
+    // wheel; specific weapons are selected with 1–9.
 
     if (this.inputManager.isKeyPressed('q') && !this._qWasDown) {
       this._qWasDown = true;

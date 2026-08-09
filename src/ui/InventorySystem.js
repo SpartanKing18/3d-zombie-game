@@ -593,8 +593,10 @@ export class InventorySystem {
         this.selectQuickSlot(slotNum);
       }
 
-      // G = use last selected quick-slot item (use without opening inventory)
-      if (e.key.toLowerCase() === 'g' && !this.game.commandSystem.isOpen && !this.isOpen) {
+      // H = use last selected quick-slot item (without opening inventory).
+      // Was 'G', but 'G' places a campfire in the main input handler — pressing it
+      // both placed a campfire AND silently consumed the quick-slot item.
+      if (e.key.toLowerCase() === 'h' && !this.game.commandSystem.isOpen && !this.isOpen) {
         const idx = this.lastSelectedQuickSlot >= 0 ? this.lastSelectedQuickSlot : 0;
         if (this.slots[idx]) {
           this.useItem(idx);

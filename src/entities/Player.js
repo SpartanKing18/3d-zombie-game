@@ -376,6 +376,10 @@ export class Player {
     if (this._adrenalinePerk && this.health < this.maxHealth * 0.3 && !this._adrenalineActive && this._speedBoostTimer <= 0) {
       this._speedBoostTimer = 6;
       this._speedBoostMult = 1.35;
+      // Must flag it as adrenaline: this both enables the no-stamina-drain effect
+      // (updateStamina) and, since the trigger guards on !_adrenalineActive, stops
+      // it re-firing every 6s while HP stays below 30%. Cleared on timer expiry.
+      this._adrenalineActive = true;
     }
 
     const right   = this._right;
