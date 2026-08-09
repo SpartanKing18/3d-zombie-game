@@ -1,2 +1,13 @@
 {
+  "weapon_axe":          "tool-axe.glb",
+  "weapon_sledgehammer": "tool-hammer-upgraded.glb",
+  "tool_hammer":         "tool-hammer.glb",
+  "water_bottle":        "bottle.glb",
+  "tool_canteen":        "bottle.glb",
+  "mat_glass_bottle":    "bottle.glb",
+  "drink_dirty_water":   "bottle.glb",
+  "drink_rain_water":    "bottle.glb",
+  "drink_purified_water":"bottle-large.glb",
+  "drink_coconut_water": "bottle-large.glb",
+  "wood":                "resource-wood.glb"
 }
