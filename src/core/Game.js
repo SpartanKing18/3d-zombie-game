@@ -8,6 +8,7 @@ import { Settings } from './Settings.js';
 import { AudioManager } from './AudioManager.js';
 import { Player } from '../entities/Player.js';
 import { ZombieManager } from '../entities/ZombieManager.js';
+import { zombieDisplayName } from '../entities/zombies/ZombieBase.js';
 import { VehicleManager } from '../entities/VehicleManager.js';
 import { TerrainGenerator } from '../world/TerrainGenerator.js';
 import { ChunkManager } from '../world/ChunkManager.js';
@@ -18,6 +19,7 @@ import { DayNightCycle } from '../world/DayNightCycle.js';
 import { WeatherSystem } from '../world/WeatherSystem.js';
 import { DebugOverlay } from '../utils/DebugOverlay.js';
 import { WeaponManager } from '../weapons/WeaponManager.js';
+import { WeaponViewModel } from '../weapons/WeaponViewModel.js';
 import { SettingsMenu } from '../ui/SettingsMenu.js';
 import { InventorySystem } from '../ui/InventorySystem.js';
 import { CraftingSystem } from '../ui/CraftingSystem.js';
@@ -85,6 +87,7 @@ export class Game {
     this.zombieManager = new ZombieManager(this);
     this.vehicleManager = new VehicleManager(this);
     this.weaponManager = new WeaponManager(this);
+    this.weaponViewModel = new WeaponViewModel(this.scene.getCamera(), this.scene.scene);
     this.dayNightCycle = new DayNightCycle(this);
     this.weatherSystem = new WeatherSystem(this);
     this.settingsMenu = new SettingsMenu(this);
@@ -132,8 +135,8 @@ export class Game {
 
     // Kill feed (primary UI) — replaces the per-kill toast
     if (!this._killFeedInit) { this._initKillFeed(); this._killFeedInit = true; }
-    const typeName = zombie.type ? zombie.type.charAt(0).toUpperCase() + zombie.type.slice(1).replace('_', ' ') : 'Zombie';
-    this._addKillFeedEntry(typeName, this.zombieKills);
+    const typeName = zombie.type ? zombieDisplayName(zombie.type) : 'Zombie';
+    this._addKillFeedEntry(typeName, this.zombieKills, zombie.type);
   }
 
   _initKillFeed() {
@@ -144,7 +147,7 @@ export class Game {
     document.body.appendChild(el);
   }
 
-  _addKillFeedEntry(typeName, killCount) {
+  _addKillFeedEntry(typeName, killCount, typeId) {
     const feed = document.getElementById('kill-feed');
     if (!feed) return;
     const colors = {
@@ -157,7 +160,7 @@ export class Game {
       zombie_soldier:'#aaddff', mutant_giant:'#ff6622',
       splitter:'#ccff44', mini_splitter:'#aaee22',
     };
-    const col = colors[typeName.toLowerCase().replaceAll(' ', '_')] ?? '#ffffff';
+    const col = colors[typeId] ?? colors[typeName.toLowerCase().replaceAll(' ', '_')] ?? '#ffffff';
     const entry = document.createElement('div');
     entry.className = 'kill-feed-entry';
     entry.style.setProperty('--kf-color', col);
@@ -461,6 +464,7 @@ export class Game {
 
     try {
       if (this.weaponManager) { this.weaponManager.update(dt); this.handleWeaponInput(); }
+      this.weaponViewModel?.update(dt, this.player, this.weaponManager?.getCurrentWeapon?.());
     } catch (e) { console.error('[WeaponManager]', e); }
 
     try {

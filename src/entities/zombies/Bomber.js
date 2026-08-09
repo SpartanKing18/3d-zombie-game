@@ -172,10 +172,11 @@ export class Bomber extends ZombieBase {
       }
     }
 
-    // Particle explosion
-    if (this.game.particleSystem) {
-      this.game.particleSystem.createExplosion?.(pos)
-        ?? this.game.particleSystem.createBlood(pos, 30);
+    // Particle explosion (createExplosion returns undefined, so the old `?? blood`
+    // always ALSO sprayed blood — pick one, don't sequence with ??)
+    const ps = this.game.particleSystem;
+    if (ps) {
+      if (ps.createExplosion) ps.createExplosion(pos); else ps.createBlood(pos, 30);
       // Secondary smaller bursts
       for (let i = 0; i < 3; i++) {
         const offset = pos.clone().addScaledVector(
@@ -183,8 +184,9 @@ export class Bomber extends ZombieBase {
           Math.random() * radius * 0.5
         );
         setTimeout(() => {
-          this.game.particleSystem?.createExplosion?.(offset)
-            ?? this.game.particleSystem?.createBlood(offset, 12);
+          const p = this.game.particleSystem;
+          if (!p) return;
+          if (p.createExplosion) p.createExplosion(offset); else p.createBlood(offset, 12);
         }, 80 + i * 80);
       }
     }

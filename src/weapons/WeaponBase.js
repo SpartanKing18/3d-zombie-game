@@ -88,6 +88,9 @@ export class WeaponBase {
       game.player._recoilRecovery = (game.player._recoilRecovery || 0) + kick * 0.75;
     }
 
+    // First-person viewmodel recoil + muzzle flash
+    game?.weaponViewModel?.triggerRecoil?.(this.recoil);
+
     return true;
   }
 

@@ -198,21 +198,32 @@ export class Necromancer extends ZombieBase {
   }
 
   // Apply health damage without shield interception (used after shield breaks mid-hit)
-  _applyHealthDamage(finalAmount) {
+  _applyHealthDamage(finalAmount, isHeadshot = false) {
     this.health -= finalAmount;
 
-    // Hit flash
-    if (this.mesh && !this._dead) {
+    // Guarded hit flash: materials are shared across meshes, so dedupe them and
+    // guard with _hitFlashing — otherwise a second hit inside the 80ms window
+    // captures the red 0xff2222 as the "original" and the body stays red.
+    if (this.mesh && !this._dead && !this._hitFlashing) {
+      clearTimeout(this._hitFlashTimer);
+      this._hitFlashColors = [];
+      const seen = new Set();
       this.mesh.traverse(child => {
-        if (child.isMesh && child.material) {
-          const origColor = child.material.color.getHex();
+        if (child.isMesh && child.material && !seen.has(child.material)) {
+          seen.add(child.material);
+          this._hitFlashColors.push({ mat: child.material, hex: child.material.color.getHex() });
           child.material.color.set(0xff2222);
-          setTimeout(() => { if (child.material) child.material.color.setHex(origColor); }, 80);
         }
       });
+      this._hitFlashing = true;
+      this._hitFlashTimer = setTimeout(() => {
+        this._hitFlashing = false;
+        for (const { mat, hex } of (this._hitFlashColors || [])) { if (mat) mat.color.setHex(hex); }
+        this._hitFlashColors = [];
+      }, 80);
     }
 
-    this._spawnDamageNumber(Math.round(finalAmount));
+    this._spawnDamageNumber(Math.round(finalAmount), isHeadshot);
 
     if (this.health <= 0 && !this._dead) {
       this.die();

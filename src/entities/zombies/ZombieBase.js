@@ -2,6 +2,23 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { Pathfinder } from '../../utils/Pathfinder.js';
 
+// Human-readable names for the internal snake_case zombie type ids. Used by the
+// death screen and kill feed so the player never sees "Killed by acid_spitter".
+const ZOMBIE_DISPLAY_NAMES = {
+  walker: 'Walker', runner: 'Runner', tank: 'Tank', spitter: 'Spitter', screamer: 'Screamer',
+  crawler: 'Crawler', armored: 'Armored Zombie', bloater: 'Bloater', stalker: 'Stalker',
+  regenerator: 'Regenerator', berserker: 'Berserker', leaper: 'Leaper', child_zombie: 'Child Zombie',
+  juggernaut: 'Juggernaut', phantom: 'Phantom', horde_master: 'Horde Master', bomber: 'Bomber',
+  acid_spitter: 'Acid Spitter', zombie_hound: 'Zombie Hound', necromancer: 'Necromancer',
+  zombie_soldier: 'Zombie Soldier', splitter: 'Splitter', mutant_giant: 'Mutant Giant',
+  mini_splitter: 'Splitterling'
+};
+
+export function zombieDisplayName(type) {
+  return ZOMBIE_DISPLAY_NAMES[type]
+    ?? String(type).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export class ZombieBase {
   constructor(x, z, game, config = {}) {
     this.game = game;
@@ -478,6 +495,10 @@ export class ZombieBase {
     // Always sync position from physics so mesh and distance checks stay accurate
     this.position.copy(this.body.position);
 
+    // A leaping zombie (Leaper) keeps its launched velocity and arcs under gravity —
+    // skip grounding and steering so the pounce isn't cancelled the same frame.
+    if (this._isLeaping) return;
+
     // Grounding: zombies don't collide with terrain physics (terrain mask is player-only),
     // so pin them to the surface every frame. Cancel gravity so they never sink between
     // frames, and smooth toward the (cached, grid-quantized) terrain height to avoid steps.
@@ -565,12 +586,18 @@ export class ZombieBase {
         this.body.velocity.z = 0;
       }
     }
+
+    // Night speed multiplier — applied here so it stacks with (never overwrites)
+    // any ability that changed this.speed. Idle already returned above.
+    const nm = this._nightMult ?? 1;
+    if (nm !== 1) { this.body.velocity.x *= nm; this.body.velocity.z *= nm; }
   }
 
   checkAttack(player, distToPlayer) {
     if (this.state === 'attacking' && distToPlayer < this.attackRange && this.lastAttackTime >= this.attackCooldown) {
       if (player.health - this.damage <= 0 && player.setDeathCause) {
-        player.setDeathCause(`Killed by ${this.type}`);
+        const name = this.displayName();
+        player.setDeathCause(`Killed by ${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}`);
       }
       player.takeDamage(this.damage, this.position);
       this.game.audioManager?.resume?.();
@@ -961,5 +988,10 @@ export class ZombieBase {
 
   isAlive() {
     return !this._dead && this.health > 0;
+  }
+
+  // Human-readable name for HUD / death screen / kill feed
+  displayName() {
+    return zombieDisplayName(this.type);
   }
 }

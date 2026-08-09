@@ -30,7 +30,7 @@ export class Scene {
     this.renderer.setSize(this.width, this.height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // softer, less jagged contact shadows
     this.renderer.shadowMap.autoUpdate = true;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -286,6 +286,9 @@ export class Scene {
     this.sunLight.shadow.bias = -0.0003;
     this.sunLight.shadow.normalBias = 0.03;
     this.scene.add(this.sunLight);
+    // Target must be in the scene graph so DayNightCycle can move the shadow
+    // frustum to follow the player (otherwise shadows only exist near the origin).
+    this.scene.add(this.sunLight.target);
 
     // Blue sky fill from opposite side
     const fillLight = new THREE.DirectionalLight(0x8ab4cc, 0.4);

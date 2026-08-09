@@ -184,6 +184,17 @@ export class ParticleSystem {
     this._spawn(GEO.medium, 0xaaddff, position, _v.set(0,0,0), 0.1, 0, true, 0.8);
   }
 
+  // Bright metallic sparks — for bullets ricocheting off armor plating
+  createSpark(position) {
+    for (let i = 0; i < 7; i++) {
+      const a = Math.random() * Math.PI * 2, spd = 3 + Math.random() * 6;
+      this._spawn(GEO.spark, i % 2 ? 0xffdd66 : 0xfff2c0, position,
+        _v.set(Math.cos(a) * spd, 1 + Math.random() * 4, Math.sin(a) * spd),
+        0.18 + Math.random() * 0.1, -22, false, 1, false);
+    }
+    this._spawn(GEO.small, 0xffffff, position, _v.set(0, 0, 0), 0.05, 0, true, 0.9);
+  }
+
   createHeal(position) {
     for (let i = 0; i < 10; i++) {
       const a = (i/10)*Math.PI*2;

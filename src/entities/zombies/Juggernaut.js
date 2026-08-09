@@ -216,7 +216,8 @@ export class Juggernaut extends ZombieBase {
     if (this.game.particleSystem && !this._dead) {
       const pos = this.position.clone();
       pos.y += 0.8;
-      this.game.particleSystem.createSpark?.(pos) ?? this.game.particleSystem.createBlood(pos, 2);
+      const ps = this.game.particleSystem;
+      if (ps.createSpark) ps.createSpark(pos); else ps.createBlood(pos, 2);
     }
 
     super.takeDamage(reduced, isHeadshot);

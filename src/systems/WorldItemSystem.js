@@ -845,7 +845,14 @@ export class WorldItemSystem {
       this._ihcRarity = document.getElementById('ihc-rarity');
       this._ihcQty    = document.getElementById('ihc-qty');
     }
-    if (this._hoverCard) {
+    // Never show the pickup card over the death screen / pause menu / when stopped
+    if (this._deathScreenEl === undefined) this._deathScreenEl = document.getElementById('death-screen');
+    const uiBlocked = this.game.isPaused || !this.game.isRunning
+      || (this._deathScreenEl && this._deathScreenEl.style.display === 'flex');
+
+    if (this._hoverCard && uiBlocked) {
+      this._hoverCard.classList.remove('ihc-show');
+    } else if (this._hoverCard) {
       const nearest = playerPos
         ? this.getNearbyItem(playerPos.x, playerPos.y, playerPos.z, 2)
         : null;

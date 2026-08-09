@@ -154,7 +154,7 @@ export class Phantom extends ZombieBase {
       }
 
       if (player.health - attackDamage <= 0 && player.setDeathCause) {
-        player.setDeathCause(this._phasing ? 'Backstabbed by Phantom' : 'Killed by phantom');
+        player.setDeathCause(this._phasing ? 'Backstabbed by a Phantom' : 'Killed by a Phantom');
       }
       player.takeDamage(attackDamage);
       this.game.audioManager?.resume?.();

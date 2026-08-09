@@ -27,7 +27,7 @@ export class AchievementSystem {
     if (!document.getElementById('ach-popup')) {
       const el = document.createElement('div');
       el.id = 'ach-popup';
-      el.style.cssText = 'position:fixed;top:80px;right:-320px;width:280px;background:linear-gradient(135deg,rgba(20,20,30,0.97),rgba(30,30,50,0.97));border:1px solid #gold;border-color:#aa8833;border-radius:8px;padding:12px 16px;z-index:9000;transition:right 0.4s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;';
+      el.style.cssText = 'position:fixed;top:80px;right:-320px;width:280px;background:linear-gradient(135deg,rgba(20,20,30,0.97),rgba(30,30,50,0.97));border:1px solid #aa8833;border-radius:8px;padding:12px 16px;z-index:9000;transition:right 0.4s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;';
       el.innerHTML = '<div style="color:#ffdd44;font-size:11px;font-family:monospace;letter-spacing:1px;margin-bottom:4px;">🏆 ACHIEVEMENT UNLOCKED</div><div id="ach-icon" style="font-size:28px;float:left;margin-right:10px;"></div><div id="ach-name" style="color:#ffffff;font-size:14px;font-weight:bold;font-family:monospace;"></div><div id="ach-desc" style="color:#aaaacc;font-size:11px;font-family:monospace;margin-top:2px;"></div><div style="clear:both"></div>';
       document.body.appendChild(el);
     }

@@ -385,8 +385,8 @@ export class CommandSystem {
       craft: 'Open inventory and find recipes at the bottom. Click Craft if you have ingredients.',
       recruit: 'Talk to NPCs (N) and select "I\'ll help" to recruit them to your team.',
       stamina: 'Sprint (Shift) drains stamina. It regenerates when you rest. Crouch (C) is slower but uses less.',
-      water: 'Use water bottles from your inventory to restore stamina. Find water in buildings.',
-      bottle: 'Water bottles restore stamina when used. Right-click to drink from your inventory.',
+      water: 'Use water bottles from your inventory to restore thirst. Find water in buildings.',
+      bottle: 'Water bottles restore thirst when used. Right-click to drink from your inventory.',
       weapon: 'Switch weapons with E/Q. Fire with Left-click. Reload with R. Different weapons have different uses.',
       minimap: 'Press M to toggle the minimap display in the bottom right corner.'
     };

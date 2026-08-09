@@ -25,6 +25,10 @@ export class ZombieHound extends ZombieBase {
     this.body.linearDamping = 0.3;
     this.body.angularDamping = 1;
     this.body.fixedRotation = true;
+    // Only collide with the player (like every other zombie) — without these the
+    // hound uses cannon defaults and shoves/jitters against other zombie bodies
+    this.body.collisionFilterGroup = 2; // GROUP_ZOMBIE
+    this.body.collisionFilterMask  = 1; // GROUP_PLAYER only
     this.game.physicsWorld.addBody(this.body);
   }
 

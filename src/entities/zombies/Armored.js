@@ -80,14 +80,16 @@ export class Armored extends ZombieBase {
     // Armor reduces bullet damage 70% unless headshot
     const reduced = isHeadshot ? amount : amount * 0.3;
     if (!isHeadshot && this._armorIntact) {
-      // Spark flash on armor hit
-      if (this.game.particleSystem) {
+      // Spark flash on armor hit (metal shouldn't "bleed")
+      const ps = this.game.particleSystem;
+      if (ps) {
         const pos = this.position.clone();
         pos.y += 0.7;
-        this.game.particleSystem.createSpark?.(pos) ?? this.game.particleSystem.createBlood(pos, 3);
+        if (ps.createSpark) ps.createSpark(pos); else ps.createBlood(pos, 3);
       }
     }
-    super.takeDamage(reduced);
+    // Forward isHeadshot so headshots still get the 2.5x multiplier + hitmarker
+    super.takeDamage(reduced, isHeadshot);
   }
 
   dropLoot() {

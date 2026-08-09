@@ -133,7 +133,7 @@ export class InventorySystem {
 
     this.itemTypes = {
       // ── Original items ──────────────────────────────────────────────────
-      water_bottle:  { name: 'Water Bottle',  stackable: true,  icon: 'icon-water',       rarity: 'common',   effect: 'restores 20 stamina',               usable: true,  category: 'food'     },
+      water_bottle:  { name: 'Water Bottle',  stackable: true,  icon: 'icon-water',       rarity: 'common',   effect: 'restores 30 thirst, 20 stamina',    usable: true,  category: 'food'     },
       food:          { name: 'Food',           stackable: true,  icon: 'icon-food',        rarity: 'common',   effect: 'restores 25 hunger',                usable: true,  category: 'food'     },
       ammo_pistol:   { name: 'Pistol Ammo',   stackable: true,  icon: 'icon-ammo-pistol', rarity: 'common',   effect: 'weapon ammo',                       usable: false, category: 'ammo'     },
       ammo_rifle:    { name: 'Rifle Ammo',    stackable: true,  icon: 'icon-ammo-rifle',  rarity: 'common',   effect: 'weapon ammo',                       usable: false, category: 'ammo'     },
@@ -161,8 +161,8 @@ export class InventorySystem {
       food_protein_bar:     { name: 'Protein Bar',        stackable: true, rarity: 'common',   effect: 'restores 15 hunger, 10 stamina',        usable: true,  category: 'food' },
       food_beef_jerky:      { name: 'Beef Jerky',         stackable: true, rarity: 'common',   effect: 'restores 18 hunger',                   usable: true,  category: 'food' },
       food_granola:         { name: 'Granola',            stackable: true, rarity: 'common',   effect: 'restores 12 hunger',                   usable: true,  category: 'food' },
-      food_apple:           { name: 'Apple',              stackable: true, rarity: 'common',   effect: 'restores 8 hunger, 5 hydration',        usable: true,  category: 'food' },
-      food_orange:          { name: 'Orange',             stackable: true, rarity: 'common',   effect: 'restores 10 hunger, 8 hydration',       usable: true,  category: 'food' },
+      food_apple:           { name: 'Apple',              stackable: true, rarity: 'common',   effect: 'restores 8 hunger, 5 thirst',        usable: true,  category: 'food' },
+      food_orange:          { name: 'Orange',             stackable: true, rarity: 'common',   effect: 'restores 10 hunger, 8 thirst',       usable: true,  category: 'food' },
       food_banana:          { name: 'Banana',             stackable: true, rarity: 'common',   effect: 'restores 12 hunger, 5 stamina',         usable: true,  category: 'food' },
       food_chips:           { name: 'Chips',              stackable: true, rarity: 'common',   effect: 'restores 5 hunger',                    usable: true,  category: 'food' },
       food_cereal:          { name: 'Cereal',             stackable: true, rarity: 'common',   effect: 'restores 14 hunger',                   usable: true,  category: 'food' },
@@ -177,15 +177,15 @@ export class InventorySystem {
       food_spam:            { name: 'Spam',               stackable: true, rarity: 'common',   effect: 'restores 20 hunger',                   usable: true,  category: 'food' },
 
       // ── Drinks ──────────────────────────────────────────────────────────
-      drink_energy_drink:   { name: 'Energy Drink',       stackable: true, rarity: 'common',   effect: 'restores 25 stamina',                  usable: true,  category: 'food' },
-      drink_soda:           { name: 'Soda',               stackable: true, rarity: 'common',   effect: 'restores 10 stamina, 5 hunger',         usable: true,  category: 'food' },
-      drink_coffee:         { name: 'Coffee',             stackable: true, rarity: 'common',   effect: 'restores 20 stamina',                  usable: true,  category: 'food' },
-      drink_milk:           { name: 'Milk',               stackable: true, rarity: 'common',   effect: 'restores 15 stamina, 10 hunger',        usable: true,  category: 'food' },
-      drink_juice:          { name: 'Juice',              stackable: true, rarity: 'common',   effect: 'restores 15 stamina, 8 hunger',         usable: true,  category: 'food' },
-      drink_sports_drink:   { name: 'Sports Drink',       stackable: true, rarity: 'common',   effect: 'restores 20 stamina',                  usable: true,  category: 'food' },
-      drink_dirty_water:    { name: 'Dirty Water',        stackable: true, rarity: 'common',   effect: 'restores 5 stamina, risk of sickness',  usable: true,  category: 'food' },
-      drink_purified_water: { name: 'Purified Water',     stackable: true, rarity: 'common',   effect: 'restores 20 stamina',                  usable: true,  category: 'food' },
-      drink_beer:           { name: 'Beer',               stackable: true, rarity: 'common',   effect: 'restores 10 stamina, minor debuff',     usable: true,  category: 'food' },
+      drink_energy_drink:   { name: 'Energy Drink',       stackable: true, rarity: 'common',   effect: 'restores 12 thirst, 25 stamina',        usable: true,  category: 'food' },
+      drink_soda:           { name: 'Soda',               stackable: true, rarity: 'common',   effect: 'restores 15 thirst, 10 stamina, 5 hunger', usable: true, category: 'food' },
+      drink_coffee:         { name: 'Coffee',             stackable: true, rarity: 'common',   effect: 'restores 10 thirst, 20 stamina',        usable: true,  category: 'food' },
+      drink_milk:           { name: 'Milk',               stackable: true, rarity: 'common',   effect: 'restores 22 thirst, 15 stamina, 10 hunger', usable: true, category: 'food' },
+      drink_juice:          { name: 'Juice',              stackable: true, rarity: 'common',   effect: 'restores 25 thirst, 15 stamina, 8 hunger', usable: true, category: 'food' },
+      drink_sports_drink:   { name: 'Sports Drink',       stackable: true, rarity: 'common',   effect: 'restores 30 thirst, 20 stamina',        usable: true,  category: 'food' },
+      drink_dirty_water:    { name: 'Dirty Water',        stackable: true, rarity: 'common',   effect: 'restores 20 thirst, risk of sickness',  usable: true,  category: 'food' },
+      drink_purified_water: { name: 'Purified Water',     stackable: true, rarity: 'common',   effect: 'restores 40 thirst, 20 stamina',        usable: true,  category: 'food' },
+      drink_beer:           { name: 'Beer',               stackable: true, rarity: 'common',   effect: 'restores 8 thirst, minor debuff',       usable: true,  category: 'food' },
 
       // ── Medical ─────────────────────────────────────────────────────────
       med_antibiotics:      { name: 'Antibiotics',        stackable: true,  rarity: 'rare',    effect: 'cures infection',                       usable: true,  category: 'medical' },
@@ -366,7 +366,7 @@ export class InventorySystem {
 
       // ── New forageable foods ─────────────────────────────────────────────
       food_mushroom:        { name: 'Mushroom',            stackable: true,  rarity: 'common',  effect: 'restores 8 hunger, crafting ingredient',  usable: true,  category: 'food' },
-      food_berry:           { name: 'Wild Berries',        stackable: true,  rarity: 'common',  effect: 'restores 6 hunger, 5 hydration',          usable: true,  category: 'food' },
+      food_berry:           { name: 'Wild Berries',        stackable: true,  rarity: 'common',  effect: 'restores 6 hunger, 5 thirst',          usable: true,  category: 'food' },
       food_honey:           { name: 'Honey',               stackable: true,  rarity: 'uncommon',effect: 'restores 12 hunger, 10 stamina',          usable: true,  category: 'food' },
       food_cooked_meat:     { name: 'Cooked Meat',         stackable: true,  rarity: 'common',  effect: 'restores 30 hunger, 10 health',           usable: true,  category: 'food' },
       food_military_ration: { name: 'Military Ration',     stackable: true,  rarity: 'uncommon',effect: 'restores 40 hunger, 20 stamina',          usable: true,  category: 'food' },
@@ -395,8 +395,8 @@ export class InventorySystem {
       food_soup_bowl:       { name: 'Canned Tomato Soup',  stackable: true,  rarity: 'common',  effect: 'restores 20 hunger',                    usable: true,  category: 'food' },
       food_oatmeal:         { name: 'Oatmeal',             stackable: true,  rarity: 'common',  effect: 'restores 18 hunger, 5 stamina',          usable: true,  category: 'food' },
       food_granola_bar:     { name: 'Granola Bar',         stackable: true,  rarity: 'common',  effect: 'restores 10 hunger, 8 stamina',          usable: true,  category: 'food' },
-      food_dried_fruit:     { name: 'Dried Fruit',         stackable: true,  rarity: 'common',  effect: 'restores 12 hunger, 5 hydration',        usable: true,  category: 'food' },
-      food_canned_peaches:  { name: 'Canned Peaches',      stackable: true,  rarity: 'common',  effect: 'restores 14 hunger, 8 hydration',        usable: true,  category: 'food' },
+      food_dried_fruit:     { name: 'Dried Fruit',         stackable: true,  rarity: 'common',  effect: 'restores 12 hunger, 5 thirst',        usable: true,  category: 'food' },
+      food_canned_peaches:  { name: 'Canned Peaches',      stackable: true,  rarity: 'common',  effect: 'restores 14 hunger, 8 thirst',        usable: true,  category: 'food' },
 
       // ── Tools (additional) ───────────────────────────────────────────────
       tool_lighter:         { name: 'Lighter',             stackable: false, rarity: 'common',  effect: 'start fires, light torches',             usable: true,  category: 'tool' },

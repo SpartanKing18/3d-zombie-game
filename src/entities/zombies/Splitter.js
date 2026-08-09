@@ -180,8 +180,9 @@ export class Splitter extends ZombieBase {
         // headshot height + health bar position for the smaller size)
         mini.setMeshScale?.(0.45);
 
-        // Register with zombie manager if available
-        this.game.zombieManager?.registerZombie?.(mini);
+        // Register with zombie manager (method is addZombie — registerZombie
+        // never existed, so minis were silently orphaned: never updated/despawned)
+        this.game.zombieManager?.addZombie?.(mini);
       } catch (e) {
         // Spawn failed silently — don't crash parent death sequence
       }

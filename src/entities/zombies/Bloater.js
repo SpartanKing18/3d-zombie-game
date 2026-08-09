@@ -95,12 +95,13 @@ export class Bloater extends ZombieBase {
         if (notif && d < 6) { notif.textContent = '☣ Bloater exploded! Watch out!'; notif.style.color = '#88ff44'; notif.classList.remove('show'); void notif.offsetWidth; notif.classList.add('show'); }
       }
     }
-    // Toxic gas particle cloud
-    if (this.game.particleSystem) {
+    // Toxic gas particle cloud (don't sequence explosion with `?? blood`)
+    const ps = this.game.particleSystem;
+    if (ps) {
       for (let i = 0; i < 3; i++) {
         const pos = this.position.clone();
         pos.x += (Math.random()-0.5)*2; pos.z += (Math.random()-0.5)*2;
-        this.game.particleSystem.createExplosion?.(pos) ?? this.game.particleSystem.createBlood(pos, 20);
+        if (ps.createExplosion) ps.createExplosion(pos); else ps.createBlood(pos, 20);
       }
     }
     // Spawn 2-3 crawlers from the corpse

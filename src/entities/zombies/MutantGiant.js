@@ -157,7 +157,7 @@ export class MutantGiant extends ZombieBase {
       if (distToPlayer <= stompRadius) {
         const stompDmg = Math.round(this.damage * 0.8);
         if (player.health - stompDmg <= 0 && player.setDeathCause) {
-          player.setDeathCause('Crushed by MutantGiant ground stomp');
+          player.setDeathCause('Crushed by a Mutant Giant');
         }
         player.takeDamage(stompDmg);
 
@@ -222,7 +222,7 @@ export class MutantGiant extends ZombieBase {
       // player.health check: Player never sets a _dead flag, so guard on actual HP
       // to stop the DoT ticking on a dead/respawned player
       if (player && player.health > 0 && !this._dead && elapsed < 2.0) {
-        if (player.setDeathCause && player.health - grabDps * 0.25 <= 0) player.setDeathCause('Grabbed by MutantGiant');
+        if (player.setDeathCause && player.health - grabDps * 0.25 <= 0) player.setDeathCause('Grabbed by a Mutant Giant');
         player.takeDamage(grabDps * 0.25);
       } else {
         clearInterval(interval);
@@ -341,8 +341,8 @@ export class MutantGiant extends ZombieBase {
     if (this.game.particleSystem && !this._dead) {
       const pos = this.position.clone();
       pos.y += 1.0;
-      this.game.particleSystem.createSpark?.(pos) ??
-        this.game.particleSystem.createBlood(pos, 2);
+      const ps = this.game.particleSystem;
+      if (ps.createSpark) ps.createSpark(pos); else ps.createBlood(pos, 2);
     }
 
     super.takeDamage(reduced, isHeadshot);

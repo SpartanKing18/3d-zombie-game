@@ -121,7 +121,7 @@ export class Leaper extends ZombieBase {
             // Bonus damage on landing
             const bonusDmg = this.damage + 10;
             if (player.health - bonusDmg <= 0 && player.setDeathCause) {
-              player.setDeathCause('Leaped on by leaper');
+              player.setDeathCause('Pounced on by a Leaper');
             }
             if (!player.godMode) player.takeDamage(bonusDmg);
             // Knock player down hard

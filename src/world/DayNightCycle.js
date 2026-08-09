@@ -51,11 +51,18 @@ export class DayNightCycle {
     const sunAngle = nt * Math.PI * 2 - Math.PI / 2;
     const sunElevation = Math.sin(sunAngle); // -1 midnight, +1 noon
 
+    // Anchor the sun (and its shadow frustum) to the player so cast shadows don't
+    // vanish once the player roams past the fixed ±120 box around the world origin.
+    const p = this.game.player?.getPosition?.();
+    const px = p?.x ?? 0, pz = p?.z ?? 0;
+
     if (this.directionalLight) {
       const dist = 300;
-      this.directionalLight.position.x = Math.cos(sunAngle) * dist;
+      this.directionalLight.position.x = px + Math.cos(sunAngle) * dist;
       this.directionalLight.position.y = sunElevation * dist + 30;
-      this.directionalLight.position.z = Math.sin(sunAngle * 0.7) * dist * 0.5;
+      this.directionalLight.position.z = pz + Math.sin(sunAngle * 0.7) * dist * 0.5;
+      const tgt = this.directionalLight.target;
+      if (tgt) { tgt.position.set(px, 0, pz); tgt.updateMatrixWorld(); }
 
       // Sun intensity: smooth, no abrupt jump at horizon
       const sunIntensity = Math.max(0, Math.pow(sunElevation, 0.6)) * 2.0 + 0.04;
@@ -74,11 +81,11 @@ export class DayNightCycle {
       }
     }
 
-    // Moon: opposite direction, cool blue-white, strongest at midnight
+    // Moon: opposite direction, cool blue-white, strongest at midnight (also player-anchored)
     if (this._moonLight) {
-      this._moonLight.position.x = -this.directionalLight.position.x;
+      this._moonLight.position.x = px - Math.cos(sunAngle) * 300;
       this._moonLight.position.y = Math.max(30, -sunElevation * 280 + 30);
-      this._moonLight.position.z = -this.directionalLight.position.z;
+      this._moonLight.position.z = pz - Math.sin(sunAngle * 0.7) * 150;
       this._moonLight.intensity = Math.max(0, -sunElevation) * 0.4;
     }
 
@@ -99,13 +106,12 @@ export class DayNightCycle {
       }
     }
 
-    // Make zombies faster at night
+    // Make zombies faster at night — stored as a separate multiplier consumed at
+    // movement time, so it never clobbers per-zombie speed abilities (Berserker
+    // rage, Stalker sprint, HordeMaster aura, Screamer alert all set this.speed).
     if (this.game.zombieManager) {
       const mult = this.getNightMultiplier();
-      this.game.zombieManager.getZombies?.()?.forEach(z => {
-        if (!z._baseSpeed) z._baseSpeed = z.speed;
-        z.speed = z._baseSpeed * mult;
-      });
+      this.game.zombieManager.getZombies?.()?.forEach(z => { z._nightMult = mult; });
     }
   }
 
