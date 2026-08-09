@@ -772,7 +772,9 @@ export class WorldItemSystem {
     const id   = this._id++;
     const glow = this._rarityGlow(type);
 
-    const model = this._buildModel(type, glow);
+    // Use a downloaded model for this item type if one is registered, else the
+    // procedural mesh. Either way the code below re-grounds and scales it.
+    const model = this.game.itemModelLoader?.createModel?.(type) || this._buildModel(type, glow);
 
     // Shift model up so its bottom edge sits exactly at y=0.
     // Without this every model floats at half its height above ground.

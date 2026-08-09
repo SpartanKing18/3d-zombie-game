@@ -36,6 +36,7 @@ import { MissionSystem } from '../systems/MissionSystem.js';
 import { FriendsHouse } from '../environments/FriendsHouse.js';
 import { ParticleSystem } from '../systems/ParticleSystem.js';
 import { WorldItemSystem } from '../systems/WorldItemSystem.js';
+import { ItemModelLoader } from '../systems/ItemModelLoader.js';
 import { AchievementSystem } from '../systems/AchievementSystem.js';
 
 export class Game {
@@ -89,6 +90,7 @@ export class Game {
     // Start loading the optional external zombie model before any zombie spawns.
     // Zombies fall back to the procedural body until (and unless) it's ready.
     this.zombieModelLoader = new ZombieModelLoader();
+    this.itemModelLoader = new ItemModelLoader();
 
     this.player = new Player(this);
     this.zombieManager = new ZombieManager(this);
