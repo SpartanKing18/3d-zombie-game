@@ -12,3 +12,4 @@ wrench2  /m/1qHVKaDWub  CC0
 syringe /m/0g8M6yYtE4 CC0
 wrench /m/1qHVKaDWub CC0
 crowbar /m/14BId3kEYS CC0
+cc0-melee knife (self-contained) replaces the flat one

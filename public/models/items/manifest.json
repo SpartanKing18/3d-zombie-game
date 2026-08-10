@@ -77,5 +77,18 @@
   "med_caffeine_pills": "props/pill.glb",
   "med_antibiotics": "props/pill.glb",
   "med_antiradiation": "props/pill.glb",
-  "med_sleeping_pills": "props/pill.glb"
+  "med_sleeping_pills": "props/pill.glb",
+  "weapon_revolver": "props/revolver.glb",
+  "weapon_pistol_found": "props/revolver.glb",
+  "weapon_rifle_found": "props/rifle.glb",
+  "weapon_smg_found": "props/rifle.glb",
+  "weapon_shotgun_found": "props/shotgun.glb",
+  "weapon_sawed_off": "props/shotgun.glb",
+  "mat_battery": "props/battery.glb",
+  "elec_battery_pack": "props/battery.glb",
+  "tool_car_battery": "props/battery.glb",
+  "elec_phone": "props/phone.glb",
+  "elec_tablet": "props/phone.glb",
+  "tool_fuel_can": "props/gascan.glb",
+  "gear_binoculars": "props/binoculars.glb"
 }
