@@ -108,6 +108,10 @@ export class WeaponViewModel {
       if (!o.isMesh) return;
       o.renderOrder = 999;
       o.frustumCulled = false;
+      // Own the geometry: the registry clone shares it, and _disposeModel disposes
+      // geometry on weapon switch — which would corrupt the shared template and
+      // every other clone (blade pickups, re-equip). Clone so disposal is safe.
+      if (o.geometry) o.geometry = o.geometry.clone();
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       mats.forEach(m => { m.depthTest = false; m.depthWrite = false; });
     });
