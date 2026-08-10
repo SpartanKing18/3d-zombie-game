@@ -1083,7 +1083,8 @@ html, body {
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  animation: fadeInOut 2s ease-in-out;
+  opacity: 0;                       /* hidden by default — JS fades it in on select */
+  transition: opacity 0.3s ease;    /* (was `animation: fadeInOut` which left it stuck visible & empty) */
 }
 
 @keyframes fadeInOut {

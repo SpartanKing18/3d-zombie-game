@@ -19,10 +19,13 @@ export class TreeGenerator {
     };
   }
 
-  _placeModel(key, x, y, z, scale) {
+  _placeModel(key, x, y, z, scale, castShadow = true) {
     const model = this.game.natureModelLoader?.createModel?.(key);
     if (!model) return null;
     model.scale.setScalar(scale);
+    // Small ground detail (grass/flowers) casting shadows is a big cost for almost
+    // no visual gain — disable it to keep the frame rate up.
+    if (!castShadow) model.traverse(o => { if (o.isMesh) o.castShadow = false; });
     const group = new THREE.Group();
     group.add(model);
     group.position.set(x, y, z);
@@ -76,25 +79,25 @@ export class TreeGenerator {
 
   scatterDetail(chunkX, chunkZ, chunkSize, tg) {
     if (!this.game.natureModelLoader?.ready) return;
-    // [keyArray, spawn prob per cell, [minScale, maxScale], clearRadius near house]
+    // [keyArray, prob per cell, [minScale,maxScale], clearRadius, castShadow]
     const cats = [
-      [this._nat.grass,   0.22, [1.6, 2.6], 25],
-      [this._nat.flowers, 0.05, [1.6, 2.4], 25],
-      [this._nat.rocks,   0.03, [1.5, 3.2], 45],
-      [this._nat.bushes,  0.04, [2.0, 3.2], 40],
-      [this._nat.detail,  0.02, [1.6, 2.6], 40],
+      [this._nat.grass,   0.12, [1.6, 2.6], 25, false],
+      [this._nat.flowers, 0.03, [1.6, 2.4], 25, false],
+      [this._nat.rocks,   0.02, [1.5, 3.2], 45, true],
+      [this._nat.bushes,  0.03, [2.0, 3.2], 40, false],
+      [this._nat.detail,  0.015, [1.6, 2.6], 40, false],
     ];
     const grid = 10;
     for (let gx = 0; gx < grid; gx++) {
       for (let gz = 0; gz < grid; gz++) {
-        for (const [keys, prob, [smin, smax], clear] of cats) {
+        for (const [keys, prob, [smin, smax], clear, cast] of cats) {
           if (Math.random() >= prob) continue;
           const cx = chunkX * chunkSize + (gx / grid + (Math.random() - 0.5) / grid) * chunkSize;
           const cz = chunkZ * chunkSize + (gz / grid + (Math.random() - 0.5) / grid) * chunkSize;
           if (Math.sqrt(cx * cx + cz * cz) < clear) continue;
           if ((tg.getSlopeAt?.(cx, cz) ?? 0) > 0.8) continue;
           const key = keys[(Math.random() * keys.length) | 0];
-          this._placeModel(key, cx, tg.getHeightAt(cx, cz), cz, smin + Math.random() * (smax - smin));
+          this._placeModel(key, cx, tg.getHeightAt(cx, cz), cz, smin + Math.random() * (smax - smin), cast);
         }
       }
     }

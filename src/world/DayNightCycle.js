@@ -85,9 +85,16 @@ export class DayNightCycle {
     // so bright-coloured surfaces (trees, houses) actually go dark after dusk
     // instead of staying fully lit by constant ambient.
     const dayF = Math.min(1, Math.max(0, (sunElevation + 0.15) / 0.5));
-    if (this.scene) this.scene.environmentIntensity = 0.16 + dayF * 0.84;
-    if (this.sceneManager?.fillLight) this.sceneManager.fillLight.intensity = 0.04 + dayF * 0.36;
+    // Indoors (friend's house) the bright plaster walls + full IBL + noon sun blow
+    // out to a white haze. Dim the ambient IBL and tone-mapping exposure inside so
+    // the interior reads properly; restore outdoors.
+    const indoor = this.game.inFriendHouse;
+    if (this.scene) this.scene.environmentIntensity = (0.16 + dayF * 0.84) * (indoor ? 0.4 : 1);
+    if (this.sceneManager?.fillLight) this.sceneManager.fillLight.intensity = (0.04 + dayF * 0.36) * (indoor ? 0.5 : 1);
     if (this.sceneManager?.hemiLight) this.sceneManager.hemiLight.intensity = 0.08 + dayF * 0.42;
+    // Exposure: runs before WeatherSystem's lightning spike each frame, so storm
+    // flashes still win. Indoors is always clear, so no conflict there.
+    if (this.game.renderer) this.game.renderer.toneMappingExposure = indoor ? 0.62 : 0.85;
 
     // Moon: opposite direction, cool blue-white, strongest at midnight (also player-anchored)
     if (this._moonLight) {

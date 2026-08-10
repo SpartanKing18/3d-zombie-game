@@ -79,7 +79,7 @@ export class Scene {
       // Subtle HDR bloom — makes glowing zombie eyes, lamp heads and muzzle flash
       // glow in the dark. Threshold lowered from 0.85 so mid-tone emissives
       // (eyes ~0.7–1.5 intensity) actually cross it after ACES + 0.85 exposure.
-      const bloom = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), 0.55, 0.7, 0.62);
+      const bloom = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), 0.5, 0.7, 0.8);
       composer.addPass(bloom); this._bloom = bloom;
 
       // Tone-map + sRGB BEFORE the horror grade so the grade's contrast/black-crush/
