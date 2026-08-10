@@ -91,5 +91,22 @@
   "elec_tablet": "props/phone.glb",
   "tool_fuel_can": "props/gascan.glb",
   "gear_binoculars": "props/binoculars.glb",
-  "weapon_meat_cleaver": "props/cleaver.glb"
+  "weapon_meat_cleaver": "props/cleaver.glb",
+  "cat_weapon": "props/machete.glb",
+  "cat_food": "food/can.glb",
+  "cat_drink": "bottle.glb",
+  "cat_med": "props/pill.glb",
+  "cat_ammo": "props/crate.glb",
+  "cat_tool": "tool-hammer.glb",
+  "cat_gear": "props/binoculars.glb",
+  "cat_elec": "props/phone.glb",
+  "cat_mat": "props/crate.glb",
+  "cat_key": "props/key.glb",
+  "cat_special": "props/document.glb",
+  "cat_armor": "props/armor.glb",
+  "cat_cloth": "props/jacket.glb",
+  "cat_explosive": "props/grenade.glb",
+  "cat_wood": "resource-wood.glb",
+  "cat_fuel": "props/gascan.glb",
+  "explosive_molotov": "props/molotov.glb"
 }

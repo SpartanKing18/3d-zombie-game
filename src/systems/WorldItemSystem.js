@@ -79,6 +79,27 @@ export class WorldItemSystem {
     return 'cat_' + cat;
   }
 
+  // Real-world longest-dimension (metres) for an item, so pickups are scaled to
+  // life-size relative to the player instead of a uniform blob.
+  _realWorldSize(type) {
+    // Per-item overrides for things that are notably big or small.
+    if (/rifle|shotgun|_smg|sawed_off|crossbow|_bow|chainsaw/.test(type)) return 0.95;
+    if (/sledgehammer|golf_club|spear|katana|_sword|baseball_bat|cricket_bat|nail_bat|machete/.test(type)) return 0.85;
+    if (/pistol|revolver|electric_baton|_pipe|crowbar|tire_iron|fire_poker|hatchet|_axe/.test(type)) return 0.4;
+    if (/knife|cleaver/.test(type)) return 0.28;
+    if (/pills?|aspirin|ibuprofen|vitamin|caffeine|antibiotic|_bolt|_screw|_nail|spark_plug|bearing/.test(type)) return 0.09;
+    if (/laptop|tablet/.test(type)) return 0.34;
+    if (/phone|walkie|radio_trans/.test(type)) return 0.15;
+    if (/backpack|sleeping_bag|tent|tarp|hazmat/.test(type)) return 0.6;
+    const cat = this._categoryModelKey(type).slice(4); // strip 'cat_'
+    const byCat = {
+      weapon: 0.45, food: 0.13, drink: 0.26, med: 0.13, ammo: 0.16, tool: 0.3,
+      gear: 0.28, elec: 0.25, mat: 0.32, key: 0.08, special: 0.22, armor: 0.55,
+      cloth: 0.55, explosive: 0.15, wood: 0.7, fuel: 0.35,
+    };
+    return byCat[cat] ?? 0.3;
+  }
+
   _rarityGlow(type) {
     const def = this.game.inventorySystem?.itemTypes?.[type];
     switch (def?.rarity) {
@@ -804,16 +825,23 @@ export class WorldItemSystem {
       || reg?.createModel?.(this._categoryModelKey(type))
       || this._buildModel(type, glow);
 
-    // Shift model up so its bottom edge sits exactly at y=0.
-    // Without this every model floats at half its height above ground.
+    // Scale the model to a real-world size for its type, then rest it flat on the
+    // ground (bottom edge at y=0) and centre it on the drop point.
+    const target = this._realWorldSize(type);
     model.updateMatrixWorld(true);
-    const bbox = new THREE.Box3().setFromObject(model);
+    let bbox = new THREE.Box3().setFromObject(model);
+    const sz = new THREE.Vector3(); bbox.getSize(sz);
+    const longest = Math.max(sz.x, sz.y, sz.z) || 1;
+    model.scale.multiplyScalar(target / longest);
+    model.updateMatrixWorld(true);
+    bbox = new THREE.Box3().setFromObject(model);
+    const ctr = new THREE.Vector3(); bbox.getCenter(ctr);
+    model.position.x -= ctr.x;
+    model.position.z -= ctr.z;
     if (isFinite(bbox.min.y)) model.position.y -= bbox.min.y;
 
-    // Inner group — slight scale for visibility
     const inner = new THREE.Group();
     inner.add(model);
-    inner.scale.setScalar(1.25);
 
     // Tiny random XZ spread so multiple drops don't clip inside each other
     const jx = (Math.random() - 0.5) * 0.4;
@@ -822,26 +850,6 @@ export class WorldItemSystem {
     const group = new THREE.Group();
     group.add(inner);
     group.position.set(x + jx, y, z + jz);
-
-    // Rarity glow for uncommon+ items — an unlit halo mesh, NOT a PointLight:
-    // hundreds of dropped items each carrying a real light breaks the renderer
-    if (glow.intensity > 0.12) {
-      // Share one halo geometry across all drops so it never needs per-item
-      // disposal (item disposal only frees materials, so a fresh geometry per
-      // halo would leak on every rare drop).
-      if (!this._haloGeo) this._haloGeo = new THREE.SphereGeometry(0.22, 8, 6);
-      const halo = new THREE.Mesh(
-        this._haloGeo,
-        new THREE.MeshBasicMaterial({
-          color: glow.color, transparent: true,
-          opacity: Math.min(0.4, glow.intensity * 0.9),
-          depthWrite: false
-        })
-      );
-      halo.position.set(0, 0.18, 0);
-      halo.userData.noHit = true;
-      group.add(halo);
-    }
 
     this.scene.add(group);
 
@@ -865,11 +873,7 @@ export class WorldItemSystem {
     this.time += dt;
     const playerPos = this.game.player?.getPosition?.();
 
-    // ─── Float + rotate all world items ─────────────────────────────────────
-    for (const item of this.items) {
-      item._mesh.position.y = Math.sin(this.time * 1.5 + item.id * 1.3) * 0.055;
-      item._mesh.rotation.y += dt * 0.65;
-    }
+    // World items rest flat on the ground — no float/bob, no spin (real objects).
 
     // ─── Hover card ──────────────────────────────────────────────────────────
     if (!this._hoverCard) {
