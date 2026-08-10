@@ -98,6 +98,14 @@ export class Game {
       dir: '/models/furniture/',
       fit: null, scale: 2.2, ground: true,
     });
+    // Nature (trees/rocks/grass/bushes/flowers) — the generator applies per-model
+    // scale, so the registry only ground-aligns.
+    this.natureModelLoader = new ModelRegistry({
+      label: 'NatureModels',
+      manifestUrl: '/models/nature/manifest.json',
+      dir: '/models/nature/',
+      fit: null, scale: null, ground: true,
+    });
 
     this.player = new Player(this);
     this.zombieManager = new ZombieManager(this);

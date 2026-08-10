@@ -4,6 +4,32 @@ export class TreeGenerator {
   constructor(game) {
     this.game = game;
     this.trees = [];
+    // Cohesive Kenney Nature Kit model keys (registered in the nature manifest).
+    this._nat = {
+      treesPlains:   ['tree_oak', 'tree_detailed', 'tree_simple', 'tree_tall', 'tree_fat'],
+      treesForest:   ['tree_oak', 'tree_detailed', 'tree_tall', 'tree_fat', 'tree_pineRoundA'],
+      treesMountain: ['tree_pineTallA', 'tree_pineRoundA', 'tree_pineDefaultA'],
+      treesDesert:   ['cactus_tall', 'cactus_short'],
+      treesSwamp:    ['tree_thin', 'tree_plateau', 'tree_oak'],
+      rocks:   ['rock_largeA', 'rock_largeB', 'rock_largeC', 'rock_smallA', 'rock_smallB', 'rock_tallA'],
+      grass:   ['grass', 'grass_large', 'grass_leafs', 'grass_leafsLarge'],
+      bushes:  ['plant_bush', 'plant_bushLarge', 'plant_bushSmall', 'plant_bushDetailed'],
+      flowers: ['flower_redA', 'flower_yellowA', 'flower_purpleA'],
+      detail:  ['mushroom_red', 'mushroom_tanGroup', 'log', 'stump_round'],
+    };
+  }
+
+  _placeModel(key, x, y, z, scale) {
+    const model = this.game.natureModelLoader?.createModel?.(key);
+    if (!model) return null;
+    model.scale.setScalar(scale);
+    const group = new THREE.Group();
+    group.add(model);
+    group.position.set(x, y, z);
+    group.rotation.y = Math.random() * Math.PI * 2;
+    this.game.scene.addObject(group);
+    this.trees.push({ x, z, y, mesh: group });
+    return group;
   }
 
   generateTreesForChunk(chunkX, chunkZ, chunkSize, terrainGenerator) {
@@ -42,9 +68,53 @@ export class TreeGenerator {
         }
       }
     }
+
+    // Scatter cohesive ground detail (grass tufts, rocks, bushes, flowers) so the
+    // terrain isn't a bare texture.
+    this.scatterDetail(chunkX, chunkZ, chunkSize, terrainGenerator);
+  }
+
+  scatterDetail(chunkX, chunkZ, chunkSize, tg) {
+    if (!this.game.natureModelLoader?.ready) return;
+    // [keyArray, spawn prob per cell, [minScale, maxScale], clearRadius near house]
+    const cats = [
+      [this._nat.grass,   0.22, [1.6, 2.6], 25],
+      [this._nat.flowers, 0.05, [1.6, 2.4], 25],
+      [this._nat.rocks,   0.03, [1.5, 3.2], 45],
+      [this._nat.bushes,  0.04, [2.0, 3.2], 40],
+      [this._nat.detail,  0.02, [1.6, 2.6], 40],
+    ];
+    const grid = 10;
+    for (let gx = 0; gx < grid; gx++) {
+      for (let gz = 0; gz < grid; gz++) {
+        for (const [keys, prob, [smin, smax], clear] of cats) {
+          if (Math.random() >= prob) continue;
+          const cx = chunkX * chunkSize + (gx / grid + (Math.random() - 0.5) / grid) * chunkSize;
+          const cz = chunkZ * chunkSize + (gz / grid + (Math.random() - 0.5) / grid) * chunkSize;
+          if (Math.sqrt(cx * cx + cz * cz) < clear) continue;
+          if ((tg.getSlopeAt?.(cx, cz) ?? 0) > 0.8) continue;
+          const key = keys[(Math.random() * keys.length) | 0];
+          this._placeModel(key, cx, tg.getHeightAt(cx, cz), cz, smin + Math.random() * (smax - smin));
+        }
+      }
+    }
   }
 
   createTree(x, z, groundY, biome) {
+    // Prefer a cohesive Nature Kit model tree; fall back to procedural.
+    if (this.game.natureModelLoader?.ready) {
+      const keys = biome === 'desert'   ? this._nat.treesDesert
+                 : biome === 'mountain' ? this._nat.treesMountain
+                 : biome === 'swamp'    ? this._nat.treesSwamp
+                 : biome === 'forest'   ? this._nat.treesForest
+                 : this._nat.treesPlains;
+      const key = keys[(Math.random() * keys.length) | 0];
+      // Kenney trees are ~1.2-1.5 units; scale to ~5-7 m (cacti a bit smaller).
+      const s = (biome === 'desert' ? 3.0 : 4.5) * (0.8 + Math.random() * 0.5);
+      const g = this._placeModel(key, x, groundY, z, s);
+      if (g) return g;
+    }
+
     const group = new THREE.Group();
 
     // Randomise per-tree
