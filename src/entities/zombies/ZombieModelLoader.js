@@ -16,7 +16,9 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 // ─────────────────────────────────────────────────────────────────────────────
 const MODEL_CONFIG = {
   // Mesh: first path that exists wins (GLB preferred, FBX supported).
-  meshPaths: ['/models/zombie.glb', '/models/zombie.gltf', '/models/zombie.fbx'],
+  // The shipped mesh is .fbx — list it first so the loader finds it on the first
+  // probe (glb/gltf are only fallbacks; probing them first 404s in the console).
+  meshPaths: ['/models/zombie.fbx', '/models/zombie.glb', '/models/zombie.gltf'],
 
   // Separate per-clip animation files (Mixamo / character-pack style). Each
   // file's first clip is renamed to `clip`. Leave [] if the mesh embeds clips.
