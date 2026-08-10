@@ -90,5 +90,6 @@
   "elec_phone": "props/phone.glb",
   "elec_tablet": "props/phone.glb",
   "tool_fuel_can": "props/gascan.glb",
-  "gear_binoculars": "props/binoculars.glb"
+  "gear_binoculars": "props/binoculars.glb",
+  "weapon_meat_cleaver": "props/cleaver.glb"
 }
