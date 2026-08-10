@@ -183,6 +183,37 @@ export class NeighborhoodBuilder {
   }
 
   _house(x, z, face, seed) {
+    // Prefer a cohesive Kenney City Kit model house; keep a solid collision box
+    // sized to the model. Falls back to the procedural house if not loaded.
+    const reg = this.game.buildingModelLoader;
+    if (reg?.ready) {
+      if (!this._bKeys) this._bKeys = 'abcdefghijklmnopqrstu'.split('').map(c => 'building-type-' + c);
+      const model = reg.createModel(this._bKeys[(Math.random() * this._bKeys.length) | 0]);
+      if (model) {
+        model.updateMatrixWorld(true);
+        const sz = new THREE.Vector3();
+        new THREE.Box3().setFromObject(model).getSize(sz); // unrotated footprint
+
+        const rot = this._faceRot(face);
+        const g = new THREE.Group();
+        g.add(model);
+        g.position.set(x, 0, z);
+        g.rotation.y = rot;
+        this.game.scene.addObject(g);
+        this._objects.push(g);
+
+        const body = new CANNON.Body({ mass: 0 });
+        body.addShape(new CANNON.Box(new CANNON.Vec3(sz.x / 2, sz.y / 2, sz.z / 2)));
+        body.position.set(x, sz.y / 2, z);
+        body.quaternion.copy(new CANNON.Quaternion().setFromEuler(0, rot, 0));
+        body.collisionFilterGroup = 8;
+        body.collisionFilterMask = 1;
+        this.game.physicsWorld.addBody(body);
+        this._bodies.push(body);
+        return;
+      }
+    }
+
     const M = this._mats();
     const rand = (a, b) => a + Math.random() * (b - a);
     const W = rand(8.5, 11.5), D = rand(8, 11), H = rand(3.2, 4.2);

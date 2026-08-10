@@ -106,6 +106,13 @@ export class Game {
       dir: '/models/nature/',
       fit: null, scale: null, ground: true,
     });
+    // Neighborhood/world houses — Kenney City Kit, scaled to ~9-13 m, ground-aligned.
+    this.buildingModelLoader = new ModelRegistry({
+      label: 'BuildingModels',
+      manifestUrl: '/models/buildings/manifest.json',
+      dir: '/models/buildings/',
+      fit: null, scale: 7, ground: true,
+    });
 
     this.player = new Player(this);
     this.zombieManager = new ZombieManager(this);
