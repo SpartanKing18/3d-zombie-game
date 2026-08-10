@@ -82,22 +82,25 @@ export class WorldItemSystem {
   // Real-world longest-dimension (metres) for an item, so pickups are scaled to
   // life-size relative to the player instead of a uniform blob.
   _realWorldSize(type) {
+    let size;
     // Per-item overrides for things that are notably big or small.
-    if (/rifle|shotgun|_smg|sawed_off|crossbow|_bow|chainsaw/.test(type)) return 0.95;
-    if (/sledgehammer|golf_club|spear|katana|_sword|baseball_bat|cricket_bat|nail_bat|machete/.test(type)) return 0.85;
-    if (/pistol|revolver|electric_baton|_pipe|crowbar|tire_iron|fire_poker|hatchet|_axe/.test(type)) return 0.4;
-    if (/knife|cleaver/.test(type)) return 0.28;
-    if (/pills?|aspirin|ibuprofen|vitamin|caffeine|antibiotic|_bolt|_screw|_nail|spark_plug|bearing/.test(type)) return 0.09;
-    if (/laptop|tablet/.test(type)) return 0.34;
-    if (/phone|walkie|radio_trans/.test(type)) return 0.15;
-    if (/backpack|sleeping_bag|tent|tarp|hazmat/.test(type)) return 0.6;
-    const cat = this._categoryModelKey(type).slice(4); // strip 'cat_'
-    const byCat = {
-      weapon: 0.45, food: 0.13, drink: 0.26, med: 0.13, ammo: 0.16, tool: 0.3,
-      gear: 0.28, elec: 0.25, mat: 0.32, key: 0.08, special: 0.22, armor: 0.55,
-      cloth: 0.55, explosive: 0.15, wood: 0.7, fuel: 0.35,
-    };
-    return byCat[cat] ?? 0.3;
+    if (/rifle|shotgun|_smg|sawed_off|crossbow|_bow|chainsaw/.test(type)) size = 0.95;
+    else if (/sledgehammer|golf_club|spear|katana|_sword|baseball_bat|cricket_bat|nail_bat|machete/.test(type)) size = 0.85;
+    else if (/pistol|revolver|electric_baton|_pipe|crowbar|tire_iron|fire_poker|hatchet|_axe/.test(type)) size = 0.4;
+    else if (/knife|cleaver/.test(type)) size = 0.3;
+    else if (/laptop|tablet/.test(type)) size = 0.34;
+    else if (/backpack|sleeping_bag|tent|tarp|hazmat/.test(type)) size = 0.6;
+    else {
+      const cat = this._categoryModelKey(type).slice(4); // strip 'cat_'
+      const byCat = {
+        weapon: 0.45, food: 0.16, drink: 0.26, med: 0.16, ammo: 0.18, tool: 0.3,
+        gear: 0.28, elec: 0.25, mat: 0.32, key: 0.13, special: 0.24, armor: 0.55,
+        cloth: 0.55, explosive: 0.16, wood: 0.7, fuel: 0.35,
+      };
+      size = byCat[cat] ?? 0.3;
+    }
+    // Floor small items so they're still visible on the ground.
+    return Math.max(0.2, size);
   }
 
   _rarityGlow(type) {

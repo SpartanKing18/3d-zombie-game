@@ -118,7 +118,7 @@ export class Game {
     this.zombieManager = new ZombieManager(this);
     this.vehicleManager = new VehicleManager(this);
     this.weaponManager = new WeaponManager(this);
-    this.weaponViewModel = new WeaponViewModel(this.scene.getCamera(), this.scene.scene);
+    this.weaponViewModel = new WeaponViewModel(this.scene.getCamera(), this.scene.scene, this);
     this.dayNightCycle = new DayNightCycle(this);
     this.weatherSystem = new WeatherSystem(this);
     this.settingsMenu = new SettingsMenu(this);

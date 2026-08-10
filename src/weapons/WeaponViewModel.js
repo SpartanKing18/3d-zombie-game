@@ -4,8 +4,9 @@ import * as THREE from 'three';
 // camera, with idle sway, walk bob, and recoil kick. Renders on top of the world
 // (depthTest off) so it never clips into walls. Purely cosmetic.
 export class WeaponViewModel {
-  constructor(camera, scene) {
+  constructor(camera, scene, game = null) {
     this.camera = camera;
+    this.game = game;   // for the item model registry (real held-weapon models)
     // The camera must be in the scene graph for its children to render.
     if (scene && camera.parent !== scene) scene.add(camera);
 
@@ -73,6 +74,46 @@ export class WeaponViewModel {
   }
 
   // (Re)build the model for the given weapon.
+  // Which item model to hold for this weapon (melee blades only for now — the
+  // procedural guns already read fine, and gun models need per-model muzzle work).
+  _heldModelKey(cat, nm) {
+    if (cat !== 'melee') return null;
+    if (/machete/.test(nm))       return 'weapon_machete';
+    if (/katana|sword/.test(nm))  return 'weapon_katana';
+    if (/cleaver/.test(nm))       return 'weapon_meat_cleaver';
+    if (/hatchet/.test(nm))       return 'weapon_hatchet';
+    if (/axe/.test(nm))           return 'weapon_axe';
+    if (/golf/.test(nm))          return 'weapon_golf_club';
+    if (/sledge/.test(nm))        return 'weapon_sledgehammer';
+    if (/knife/.test(nm))         return 'weapon_kitchen_knife';
+    return null; // bats/clubs/pipes etc → procedural
+  }
+
+  // Fit a ground model into the hand: scale to a held length, lay it forward
+  // (blade points -Z), centre it, and render it over the world (no depth clip).
+  _addHeldModel(g, model) {
+    const targetLen = 0.4;
+    model.updateMatrixWorld(true);
+    let bb = new THREE.Box3().setFromObject(model);
+    const sz = new THREE.Vector3(); bb.getSize(sz);
+    const longest = Math.max(sz.x, sz.y, sz.z) || 1;
+    model.scale.multiplyScalar(targetLen / longest);
+    // Ground models stand up (blade along +Y); rotate so the length points -Z.
+    model.rotation.x = -Math.PI / 2;
+    model.updateMatrixWorld(true);
+    bb = new THREE.Box3().setFromObject(model);
+    const c = new THREE.Vector3(); bb.getCenter(c);
+    model.position.sub(c);                 // centre in the hand
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      o.renderOrder = 999;
+      o.frustumCulled = false;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(m => { m.depthTest = false; m.depthWrite = false; });
+    });
+    g.add(model);
+  }
+
   setWeapon(weapon) {
     const cat = weapon ? this._category(weapon) : null;
     const key = weapon ? (cat + ':' + (weapon.name || '')) : null;
@@ -92,7 +133,17 @@ export class WeaponViewModel {
     const nm = (weapon.name || '').toLowerCase();
     let muzzleZ = -0.5;
 
-    if (cat === 'melee') {
+    // Use the real weapon model in first person when we have one (melee blades),
+    // so the held weapon isn't a procedural box. Falls back to procedural below.
+    const heldKey = this._heldModelKey(cat, nm);
+    const held = heldKey && this.game?.itemModelLoader?.createModel?.(heldKey);
+    // If we wanted a model but the loader wasn't ready yet, remember to rebuild
+    // once it is (update() invalidates currentKey so setWeapon re-runs).
+    this._builtWithoutModel = !!(heldKey && !held && !this.game?.itemModelLoader?.ready);
+    if (held) {
+      this._addHeldModel(g, held);
+      this.root.position.set(0.2, -0.2, -0.5);
+    } else if (cat === 'melee') {
       const isBlade = /knife|machete|cleaver|katana|sword|hatchet|axe/.test(nm);
       g.add(this._box(0.035, 0.1, 0.14, grip, 0, -0.02, 0.02)); // handle
       if (isBlade) g.add(this._box(0.015, 0.05, 0.34, this._mkMat(0xcfd6dd, 0.9, 0.2), 0, 0.02, -0.22));
@@ -169,6 +220,11 @@ export class WeaponViewModel {
   }
 
   update(dt, player, weapon) {
+    // The current weapon was built before its model loaded — rebuild now it's ready.
+    if (this._builtWithoutModel && this.game?.itemModelLoader?.ready) {
+      this.currentKey = null;
+      this._builtWithoutModel = false;
+    }
     this.setWeapon(weapon);
     if (!this.model) return;
     this._t += dt;
