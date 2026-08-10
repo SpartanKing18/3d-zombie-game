@@ -55,6 +55,30 @@ export class WorldItemSystem {
     return 'default';
   }
 
+  // Maps an item type to a category-default model key (cat_*), so items without a
+  // specific model still render a sensible real model instead of the flat mesh.
+  _categoryModelKey(type) {
+    const t = type;
+    let cat;
+    if (/^weapon_/.test(t)) cat = 'weapon';
+    else if (/^food_|^food$/.test(t)) cat = 'food';
+    else if (/^drink_|^water_|water_bottle/.test(t)) cat = 'drink';
+    else if (/^med_|^medical|bandage/.test(t)) cat = 'med';
+    else if (/^ammo_/.test(t)) cat = 'ammo';
+    else if (/^tool_/.test(t)) cat = 'tool';
+    else if (/^gear_/.test(t)) cat = 'gear';
+    else if (/^elec_/.test(t)) cat = 'elec';
+    else if (/^explosive_/.test(t)) cat = 'explosive';
+    else if (/^armor_/.test(t)) cat = 'armor';
+    else if (/^cloth_/.test(t)) cat = 'cloth';
+    else if (/^(key|keycard|lockpick|access_fob)/.test(t)) cat = 'key';
+    else if (/^special_/.test(t)) cat = 'special';
+    else if (t === 'wood') cat = 'wood';
+    else if (/fuel/.test(t)) cat = 'fuel';
+    else cat = 'mat'; // materials, ingots, ore, traps, rope, and anything else → supply crate
+    return 'cat_' + cat;
+  }
+
   _rarityGlow(type) {
     const def = this.game.inventorySystem?.itemTypes?.[type];
     switch (def?.rarity) {
@@ -772,9 +796,13 @@ export class WorldItemSystem {
     const id   = this._id++;
     const glow = this._rarityGlow(type);
 
-    // Use a downloaded model for this item type if one is registered, else the
-    // procedural mesh. Either way the code below re-grounds and scales it.
-    const model = this.game.itemModelLoader?.createModel?.(type) || this._buildModel(type, glow);
+    // Model priority: specific model for this type → category-default model (so
+    // EVERY item gets a real model) → procedural mesh. The code below re-grounds
+    // and scales whichever it gets.
+    const reg = this.game.itemModelLoader;
+    const model = reg?.createModel?.(type)
+      || reg?.createModel?.(this._categoryModelKey(type))
+      || this._buildModel(type, glow);
 
     // Shift model up so its bottom edge sits exactly at y=0.
     // Without this every model floats at half its height above ground.
