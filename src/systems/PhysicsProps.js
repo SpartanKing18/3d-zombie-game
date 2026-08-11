@@ -184,6 +184,26 @@ export class PhysicsProps {
     const lLArm = bodyAt(-hs - upperArmLength - lowerArmLength / 2, yArm, 0, armHe, shirtM);
     const lRArm = bodyAt( hs + upperArmLength + lowerArmLength / 2, yArm, 0, armHe, shirtM);
 
+    // Tip the whole (still upright) assembly onto its back BEFORE jointing it, so the
+    // corpse spawns lying flat on the ground instead of collapsing from standing into
+    // a compact heap. A rigid rotation preserves every relative transform, so the
+    // ConeTwist joints created next take this sprawled pose as their rest state.
+    {
+      const pivot = new CANNON.Vec3(x, gy, z);
+      const tip = new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2 + (Math.sin(x * 3.1) * 0.25));
+      const yaw = new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0, 1, 0), x * 1.3 + z * 0.7);
+      const q = tip.mult(yaw);
+      const rel = new CANNON.Vec3(), rot = new CANNON.Vec3(), nq = new CANNON.Quaternion();
+      for (const p of parts) {
+        p.body.position.vsub(pivot, rel);
+        q.vmult(rel, rot);
+        pivot.vadd(rot, p.body.position);
+        p.body.position.y += 0.14;               // rest just above the ground
+        q.mult(p.body.quaternion, nq);
+        p.body.quaternion.copy(nq);
+      }
+    }
+
     const constraints = [];
     const V = (a, b, c) => new CANNON.Vec3(a, b, c);
     const cone = (A, B, pa, pb, axisA, axisB, angle) => {
@@ -212,11 +232,6 @@ export class PhysicsProps {
     // elbows
     cone(uLArm, lLArm, V(-al, 0, 0), V(al, 0, 0), X, X, aA);
     cone(uRArm, lRArm, V( al, 0, 0), V(-al, 0, 0), X, X, aA);
-
-    // A little initial shove so it collapses to a natural sprawl instead of a
-    // suspicious perfectly-symmetric fold.
-    const nudge = V((Math.sin(x * 7.1) * 1.5), 0, (Math.cos(z * 5.3) * 1.5));
-    upperBody.applyImpulse(nudge);
 
     const rd = { parts, constraints, frozen: false, winTime: 0, winPos: null, age: 0 };
     this.ragdolls.push(rd);
