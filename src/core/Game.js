@@ -500,7 +500,7 @@ export class Game {
       this.update();
       this.physicsWorld.step(Math.min(this.deltaTime, 0.05));
       // Sync dynamic props (corpses/debris) to their bodies after the step.
-      try { this.physicsProps?.update(); } catch (e) { /* silent */ }
+      try { this.physicsProps?.update(Math.min(this.deltaTime, 0.05)); } catch (e) { /* silent */ }
     }
 
     if (this.inCutscene && this.cutsceneScene && this.cutsceneCamera) {

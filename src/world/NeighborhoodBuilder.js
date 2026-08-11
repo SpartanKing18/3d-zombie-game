@@ -84,6 +84,7 @@ export class NeighborhoodBuilder {
     this._built = true;
     const M = this._mats();
 
+    this._buildGroundFloor();
     this._buildRoads(M);
     this._buildHouses(M);
     this._buildProps(M);
@@ -412,6 +413,7 @@ export class NeighborhoodBuilder {
     const rust  = new THREE.MeshStandardMaterial({ color: 0x6e4a33, roughness: 0.96, metalness: 0.15 });
     const roofM = new THREE.MeshStandardMaterial({ color: 0x394046, roughness: 0.85, metalness: 0.35 });
     const glowM = new THREE.MeshStandardMaterial({ color: 0xff7733, emissive: 0xdd5522, emissiveIntensity: 0.8, roughness: 0.6 });
+    const skyM  = new THREE.MeshStandardMaterial({ color: 0x2b333a, roughness: 0.3, metalness: 0.4 });  // dark skylight glass
 
     const W = 34, H = 10, D = 22;
     const mk = (w, h, d, mat, x, y, z) => {
@@ -427,7 +429,7 @@ export class NeighborhoodBuilder {
     for (let i = 0; i < 4; i++) {
       const zc = -D / 2 + 2.8 + i * 5.2;
       mk(W, 0.35, 5.0, roofM, 0, H + 0.15, zc);
-      const sky = new THREE.Mesh(new THREE.BoxGeometry(W - 2, 1.6, 0.3), M.glass);
+      const sky = new THREE.Mesh(new THREE.BoxGeometry(W - 2, 1.6, 0.3), skyM);
       sky.position.set(0, H + 0.9, zc - 2.2); sky.rotation.x = -0.7; g.add(sky);
     }
 
@@ -458,10 +460,17 @@ export class NeighborhoodBuilder {
     // Rooftop vents / HVAC blocks
     for (const [vx, vz] of [[-8, 8], [8, 8], [0, 9]]) mk(2.2, 1.2, 2.2, M.darkmetal, vx, H + 0.7, vz);
 
-    // Big rooftop sign board
-    const sign = mk(16, 2.6, 0.3, M.darkmetal, 0, H + 2.2, -D / 2 + 0.4);
-    const letters = new THREE.Mesh(new THREE.BoxGeometry(14, 1.4, 0.12), glowM);
-    letters.position.set(0, H + 2.2, -D / 2 + 0.25); g.add(letters);
+    // Big rooftop sign board with real lit lettering
+    mk(16, 2.6, 0.3, M.darkmetal, 0, H + 2.2, -D / 2 + 0.4);
+    const signTex = this._signTexture('AXIOM STEELWORKS');
+    const signMat = new THREE.MeshStandardMaterial({
+      map: signTex, emissive: 0xffffff, emissiveMap: signTex, emissiveIntensity: 0.9,
+      transparent: true, roughness: 0.6,
+    });
+    const signFace = new THREE.Mesh(new THREE.PlaneGeometry(15, 2.2), signMat);
+    signFace.position.set(0, H + 2.2, -D / 2 + 0.24);
+    signFace.rotation.y = Math.PI;         // face the road (−z)
+    signFace.userData.noHit = true; g.add(signFace);
 
     // Perimeter chain-link-ish fence posts along the front
     for (let px = -W / 2; px <= W / 2; px += 3) {
@@ -478,6 +487,43 @@ export class NeighborhoodBuilder {
     body.position.set(FX, H / 2, FZ);
     body.collisionFilterGroup = 8; body.collisionFilterMask = 1;
     this.game.physicsWorld.addBody(body); this._bodies.push(body);
+  }
+
+  // Invisible fallback floor at y=0 across the flat zone. The terrain heightfield is
+  // built per-chunk and a chunk may not be generated where a corpse spawns, so
+  // dynamic props (ragdolls) could fall into the void. This static box guarantees a
+  // surface to rest on; it coincides with the flat (y=0) terrain, so it's invisible
+  // and harmless to the player.
+  _buildGroundFloor() {
+    const b = new CANNON.Body({ mass: 0 });
+    b.addShape(new CANNON.Box(new CANNON.Vec3(62, 1, 68)));
+    b.position.set(0, -1, 40);   // top face at y=0
+    this.game.physicsWorld.addBody(b); this._bodies.push(b);
+  }
+
+  // Canvas texture for the factory sign lettering.
+  _signTexture(text) {
+    const c = document.createElement('canvas');
+    c.width = 1024; c.height = 160;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.fillStyle = '#12161a';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.font = '900 104px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffb347';
+    ctx.shadowColor = '#ff7a1a';
+    ctx.shadowBlur = 26;
+    ctx.fillText(text, c.width / 2, c.height / 2 + 4);
+    // a couple of dead/flickered letters for grime
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(20,22,26,0.55)';
+    ctx.fillRect(c.width * 0.62, 30, 46, 100);
+    const tex = new THREE.CanvasTexture(c);
+    tex.anisotropy = 4;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
   }
 
   // ─── Broken / wrecked cars ──────────────────────────────────────────────────
@@ -585,8 +631,7 @@ export class NeighborhoodBuilder {
     const pp = this.game.physicsProps;
     if (!pp) return;
     const spots = [
-      [-6, 24], [10, 46], [4, 70], [-3, 76], [26, 44],
-      [-24, 22], [14, 22], [-11, 79], [9, 73],
+      [-6, 24], [10, 46], [4, 70], [26, 44], [-24, 22], [-11, 79],
     ];
     for (const [x, z] of spots) {
       try { pp.addCorpse(x, z); } catch (e) { /* silent */ }
