@@ -59,7 +59,7 @@
   "drink_wine": "food/wine-red.glb",
   "drink_beer": "food/soda-bottle.glb",
   "weapon_machete": "props/machete.glb",
-  "weapon_kitchen_knife": "props/knife.glb",
+  "weapon_kitchen_knife": "props/kitchen_knife.glb",
   "tool_knife_swiss": "props/knife.glb",
   "weapon_katana": "props/katana.glb",
   "weapon_sword": "props/katana.glb",
