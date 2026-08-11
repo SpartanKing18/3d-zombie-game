@@ -1672,7 +1672,16 @@ export class InventorySystem {
     let pos = startPos.clone();
     let life = 3.0;
 
-    const tick = (dt = 0.016) => {
+    // Real elapsed time (clamped) instead of a hardcoded 0.016 — the fuse used to
+    // run at ~0.4x speed on a 144 Hz display — and freeze while the game is paused
+    // so a grenade doesn't detonate behind the inventory screen.
+    let lastT = null;
+    const tick = (t) => {
+      if (this.game.isPaused) { lastT = null; requestAnimationFrame(tick); return; }
+      if (lastT === null) lastT = t;
+      let dt = (t - lastT) / 1000; lastT = t;
+      if (!(dt > 0)) dt = 0.016;
+      dt = Math.min(dt, 0.05);
       life -= dt;
       vel.y -= 9.8 * dt;
       pos.addScaledVector(vel, dt);
@@ -1697,9 +1706,9 @@ export class InventorySystem {
         }
         return;
       }
-      if (life > 0) requestAnimationFrame(() => tick(0.016));
+      if (life > 0) requestAnimationFrame(tick);
     };
-    tick();
+    requestAnimationFrame(tick);
   }
 
   _placeTrap(pos) {
@@ -1720,7 +1729,15 @@ export class InventorySystem {
     this.game.scene.scene.add(mesh);
 
     let trapLife = 30;
-    const check = (dt = 0.016) => {
+    let lastT = null;
+    const check = (t) => {
+      // Freeze the trap's lifetime + damage ticks while paused; use real dt so the
+      // 30s duration is wall-clock, not frame-rate, dependent.
+      if (this.game.isPaused) { lastT = null; requestAnimationFrame(check); return; }
+      if (lastT === null) lastT = t;
+      let dt = (t - lastT) / 1000; lastT = t;
+      if (!(dt > 0)) dt = 0.016;
+      dt = Math.min(dt, 0.05);
       trapLife -= dt;
       const zombies = this.game.zombieManager?.getZombies() ?? [];
       zombies.forEach(z => {
@@ -1730,13 +1747,13 @@ export class InventorySystem {
           z.stunTimer = 1.5;
         }
       });
-      if (trapLife > 0) requestAnimationFrame(() => check(0.016));
+      if (trapLife > 0) requestAnimationFrame(check);
       else {
         this.game.scene.scene.remove(mesh);
         geo.dispose(); mat.dispose();
       }
     };
-    check();
+    requestAnimationFrame(check);
   }
 
   // Reveal the coords HUD panel for `ms`, with a confirmation notification.

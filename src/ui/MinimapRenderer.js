@@ -285,11 +285,17 @@ export class MinimapRenderer {
     document.body.appendChild(overlay);
     this._fullMapEl = overlay;
     this._renderFullMap();
+    // Keep it live while open — player/zombie/NPC dots used to freeze at their
+    // positions from the instant TAB was pressed.
+    clearInterval(this._fullMapInterval);
+    this._fullMapInterval = setInterval(() => this._renderFullMap(), 250);
     // Click outside to close
     overlay.addEventListener('click', e => { if (e.target === overlay) this.hideFullMap(); });
   }
 
   hideFullMap() {
+    clearInterval(this._fullMapInterval);
+    this._fullMapInterval = null;
     if (this._fullMapEl) {
       this._fullMapEl.remove();
       this._fullMapEl = null;
