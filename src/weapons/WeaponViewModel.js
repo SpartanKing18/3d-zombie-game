@@ -101,7 +101,8 @@ export class WeaponViewModel {
   // forward (-Z), centre it, render over the world. Returns the front (muzzle) Z.
   _addHeldModel(g, model, cat = 'melee') {
     // Held length by class: handguns are short, long guns and blades longer.
-    const targetLen = cat === 'melee' ? 0.4
+    // Blades are held a touch bigger so the knife reads clearly in first person.
+    const targetLen = cat === 'melee' ? 0.5
                     : (cat === 'pistol' || cat === 'revolver') ? 0.3
                     : 0.55;
     model.updateMatrixWorld(true);

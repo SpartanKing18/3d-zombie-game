@@ -2520,7 +2520,10 @@ html, body {
 /* ── Weapon HUD slots ──────────────────────────────────────────────────────── */
 #weapon-hud {
   position: fixed;
-  bottom: 22px;
+  /* Sit ABOVE the item hotbar (#quick-slots occupies 30–90px from the bottom).
+     Both are centred, so a smaller `bottom` made the weapon slots overlap the
+     hotbar's middle slot. Stack them instead. */
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
