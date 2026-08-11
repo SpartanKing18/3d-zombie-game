@@ -588,10 +588,9 @@ export class InventorySystem {
         this.toggleInventory();
       }
 
-      if (e.key >= '1' && e.key <= '9' && !this.game.commandSystem.isOpen && !this.isOpen) {
-        const slotNum = parseInt(e.key) - 1;
-        this.selectQuickSlot(slotNum);
-      }
+      // 1-9 now selects a WEAPON in the bottom hotbar (handled by WeaponManager /
+      // Game.handleWeaponInput). The old item quick-slot bar is retired, so this
+      // no longer claims the number keys.
 
       // H = use last selected quick-slot item (without opening inventory).
       // Was 'G', but 'G' places a campfire in the main input handler — pressing it

@@ -226,34 +226,39 @@ export class WeaponManager {
     this._hudLastRebuild = now;
 
     container.innerHTML = '';
-    const show = Math.min(this.weapons.length, 9);
-    for (let i = 0; i < show; i++) {
+    // The weapon HUD is the 9-slot hotbar: weapons fill from slot 1, the rest
+    // render as empty hotbar slots so it always reads as a full bar.
+    const SLOTS = 9;
+    for (let i = 0; i < SLOTS; i++) {
       const w = this.weapons[i];
       const slot = document.createElement('div');
-      slot.className = 'weapon-hud-slot' + (i === this.currentWeaponIndex ? ' active' : '');
+      slot.className = 'weapon-hud-slot'
+        + (w && i === this.currentWeaponIndex ? ' active' : '')
+        + (w ? '' : ' empty');
 
       const keyLabel = document.createElement('div');
       keyLabel.className = 'whs-key';
       keyLabel.textContent = i + 1;
-
-      const isMelee = w.magSize <= 0;
-      const icon = document.createElement('div');
-      icon.textContent = isMelee ? '⚔️' : '🔫';
-      icon.style.fontSize = '18px';
-
-      const name = document.createElement('div');
-      name.className = 'whs-name';
-      name.textContent = w.name;
-
       slot.appendChild(keyLabel);
-      slot.appendChild(icon);
-      slot.appendChild(name);
 
-      if (!isMelee) {
-        const ammoEl = document.createElement('div');
-        ammoEl.className = 'whs-ammo';
-        ammoEl.textContent = `${w.ammoInMag}/${w.reserveAmmo}`;
-        slot.appendChild(ammoEl);
+      if (w) {
+        const isMelee = w.magSize <= 0;
+        const icon = document.createElement('div');
+        icon.textContent = isMelee ? '⚔️' : '🔫';
+        slot.appendChild(icon);
+
+        const name = document.createElement('div');
+        name.className = 'whs-name';
+        name.textContent = w.name;
+        slot.appendChild(name);
+
+        if (!isMelee) {
+          const ammoEl = document.createElement('div');
+          ammoEl.className = 'whs-ammo';
+          ammoEl.textContent = `${w.ammoInMag}/${w.reserveAmmo}`;
+          slot.appendChild(ammoEl);
+        }
+        slot.addEventListener('click', () => this.switchWeapon(i));
       }
 
       container.appendChild(slot);
