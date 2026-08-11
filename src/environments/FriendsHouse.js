@@ -3193,33 +3193,46 @@ export class FriendsHouse {
   }
 
   exitHouse() {
-    // If preload hasn't finished yet (player rushed the door), finish it now
-    if (!this._outdoorTerrainReady) this.preloadOutdoorTerrain();
+    if (this._exitingHouse) return;
+    this._exitingHouse = true;
 
-    // Remove only the interior — the exterior shell (walls/roof/lawn) stays, so
-    // the house is still standing behind you when you step out (no vanish).
-    this.clearInterior();
+    // The scene swap (interior removed, shell dropped, outdoor world built, time-of-
+    // day handed to the outdoor cycle) is a hard cut. Do it hidden behind a screen
+    // fade so it doesn't visibly pop/jump.
+    const doSwap = () => {
+      // If preload hasn't finished yet (player rushed the door), finish it now
+      if (!this._outdoorTerrainReady) this.preloadOutdoorTerrain();
 
-    // The shell was built on the raised FLOOR_Y foundation (base at y=0.5); the
-    // foundation is now gone, so drop the whole shell FLOOR_Y down to rest on the
-    // outdoor terrain (y=0) — otherwise it would float half a metre in the air.
-    for (const o of this.exteriorObjects) o.position.y -= FLOOR_Y;
-    for (const b of this.exteriorBodies) { b.position.y -= FLOOR_Y; }
+      // Remove only the interior — the exterior shell (walls/roof/lawn) stays, so
+      // the house is still standing behind you when you step out (no vanish).
+      this.clearInterior();
 
-    this.game.worldItemSystem?.removeAll();
-    this.game.inFriendHouse = false;
+      // The shell was built on the raised FLOOR_Y foundation (base at y=0.5); the
+      // foundation is now gone, so drop the whole shell FLOOR_Y down to rest on the
+      // outdoor terrain (y=0) — otherwise it would float half a metre in the air.
+      for (const o of this.exteriorObjects) o.position.y -= FLOOR_Y;
+      for (const b of this.exteriorBodies) { b.position.y -= FLOOR_Y; }
 
-    // Hide the door/interaction prompt — handleDoorInteraction stops running once
-    // we leave the house, so it would otherwise stay stuck on screen after exit.
-    const prompt = document.getElementById('interact-prompt');
-    if (prompt) prompt.style.display = 'none';
+      this.game.worldItemSystem?.removeAll();
+      this.game.inFriendHouse = false;
 
-    // Player stays exactly where they are — no position change, no Y snap.
-    // Physics drops them the small gap onto outdoor terrain naturally.
+      // Hide the door/interaction prompt — handleDoorInteraction stops running once
+      // we leave the house, so it would otherwise stay stuck on screen after exit.
+      const prompt = document.getElementById('interact-prompt');
+      if (prompt) prompt.style.display = 'none';
 
-    // NPC settlement spawns far away
-    setTimeout(() => {
-      if (this.game.npcManager) this.game.npcManager.spawnOutdoorNPCs(0, 0);
-    }, 500);
+      // Player stays exactly where they are — no position change, no Y snap.
+      // Physics drops them the small gap onto outdoor terrain naturally.
+
+      // NPC settlement spawns far away
+      setTimeout(() => {
+        if (this.game.npcManager) this.game.npcManager.spawnOutdoorNPCs(0, 0);
+      }, 500);
+
+      this._exitingHouse = false;
+    };
+
+    if (this.game._screenFade) this.game._screenFade(doSwap);
+    else doSwap();
   }
 }

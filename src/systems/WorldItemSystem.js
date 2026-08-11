@@ -834,6 +834,13 @@ export class WorldItemSystem {
     model.updateMatrixWorld(true);
     let bbox = new THREE.Box3().setFromObject(model);
     const sz = new THREE.Vector3(); bbox.getSize(sz);
+    // Long thin objects (bats, crowbars, pokers, pipes, brooms) should lie on their
+    // side when dropped — otherwise they stand up like poles sprouting from the floor.
+    if (sz.y > 4 * Math.max(sz.x, sz.z)) {
+      model.rotation.z = Math.PI / 2;
+      model.updateMatrixWorld(true);
+      bbox = new THREE.Box3().setFromObject(model); bbox.getSize(sz);
+    }
     const longest = Math.max(sz.x, sz.y, sz.z) || 1;
     model.scale.multiplyScalar(target / longest);
     model.updateMatrixWorld(true);

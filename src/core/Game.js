@@ -875,14 +875,16 @@ export class Game {
       { type:'mat_duct_tape',       w:2 }, { type:'bandage',            w:2 },
     ], -5, Y.floor, 7.5, 1.5, 0.6, 3);
 
-    // Near front door  (x=0, z=9.2)
+    // Beside the front door — pulled to the west corner (x≈-3) so the loot pile
+    // isn't dumped in the exit doorway itself (the EXIT is at x=0, z=10, and the
+    // player walks straight out along x=0).
     spawnOn([
       { type:'gear_fire_starter',  w:3 }, { type:'tool_flashlight',    w:2 },
       { type:'ammo_9mm',           w:2, qty:[6,12] }, { type:'gear_whistle',w:1 },
       { type:'cloth_backpack',     w:1 }, { type:'gear_sleeping_bag',  w:1 },
       { type:'tool_lighter',       w:3 }, { type:'gear_headlamp',      w:1 },
       { type:'tool_matches',       w:2 }, { type:'special_family_photo',w:1 },
-    ], 0, Y.floor, 9.2, 0.8, 0.3, 4);
+    ], -3.0, Y.floor, 8.6, 0.7, 0.4, 4);
 
     // ─────────────────────────────────────────────────────────────────────────
     // KITCHEN  (x:+6→+14, z:0→+10)
@@ -1921,6 +1923,30 @@ export class Game {
 
   resume() {
     this.isPaused = false;
+  }
+
+  // Fade the screen to black, run `atBlack` at peak (so a hard scene swap happens
+  // hidden), then fade back. Used to smooth the house→outdoor exit, which used to
+  // hard-cut (world pops in, time-of-day jumps).
+  _screenFade(atBlack) {
+    let ov = document.getElementById('screen-fade');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'screen-fade';
+      ov.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:6000;transition:opacity 0.22s ease;';
+      document.body.appendChild(ov);
+    }
+    ov.style.transition = 'opacity 0.22s ease';
+    let ran = false;
+    const onBlack = () => {
+      if (ran) return; ran = true;
+      try { atBlack?.(); } catch (e) { console.error(e); }
+      ov.style.transition = 'opacity 0.5s ease';
+      requestAnimationFrame(() => { ov.style.opacity = '0'; });
+    };
+    ov.addEventListener('transitionend', onBlack, { once: true });
+    setTimeout(onBlack, 300); // fallback if transitionend never fires
+    requestAnimationFrame(() => { ov.style.opacity = '1'; });
   }
 
   stop() {
