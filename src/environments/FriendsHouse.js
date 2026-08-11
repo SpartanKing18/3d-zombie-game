@@ -2470,6 +2470,11 @@ export class FriendsHouse {
         this.add(rail2);
       }
     }
+    // Fence collision — the posts/rails above are visual only, so add a solid
+    // barrier for each run of the fence (leaving the gate opening at |x|<1.5
+    // walkable). Box reaches the ground so you can't clip under the rails.
+    this.phys(19.2, 1.6, 0.4, -11.0, 0.8, 15.5);   // left run  (x: -20.6 → -1.4)
+    this.phys(19.2, 1.6, 0.4,  11.0, 0.8, 15.5);   // right run (x:  1.4 →  20.6)
 
     // Street lamp near path
     const lampPostMat = this.mat(0x333333, 0.5, 0.6);
