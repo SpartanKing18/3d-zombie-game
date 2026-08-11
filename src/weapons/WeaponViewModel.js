@@ -125,6 +125,8 @@ export class WeaponViewModel {
       if (!o.isMesh) return;
       o.renderOrder = 999;
       o.frustumCulled = false;
+      o.castShadow = false;   // it's parented to the camera — don't cast a world shadow
+      o.receiveShadow = false;
       // Own the geometry: the registry clone shares it, and _disposeModel disposes
       // geometry on weapon switch — which would corrupt the shared template and
       // every other clone (blade pickups, re-equip). Clone so disposal is safe.

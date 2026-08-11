@@ -978,10 +978,17 @@ export class ZombieBase {
               // Free GPU resources and drop the corpse reference so memory doesn't grow forever
               this._corpseMesh = null;
               this._corpseDisposed = true;
+              // Stop the animation mixer (model zombies/hound) so it stops pinning
+              // the skeleton once the corpse is gone.
+              this._modelRig?.stop?.();
+              this._modelMixer = null;
               const seen = new Set();
               mesh.traverse(c => {
                 if (c.isMesh) {
                   c.geometry?.dispose?.();
+                  // Skinned rigs (model zombies/hound) get a per-skeleton GPU bone
+                  // texture in r165 — free it, or every dead model-zombie leaks one.
+                  if (c.isSkinnedMesh) c.skeleton?.dispose?.();
                   const mats = Array.isArray(c.material) ? c.material : [c.material];
                   for (const m of mats) { if (m && !seen.has(m)) { seen.add(m); m.dispose?.(); } }
                 }
@@ -1025,6 +1032,7 @@ export class ZombieBase {
       if (c.isMesh && c.material) {
         c.material.opacity = baseOpacity;
         c.material.transparent = baseOpacity < 1;
+        c.castShadow = true;   // die()'s fade disabled it — restore for the revived zombie
       }
     });
     this.mesh = mesh;

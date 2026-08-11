@@ -227,16 +227,19 @@ export class ZombieHound extends ZombieBase {
         player.body.velocity.y = Math.max(player.body.velocity.y, 2.0);
       }
 
-      // Status effects (inherited rates)
-      const notifEl = document.getElementById('loot-notification');
-      if (Math.random() < 0.15 && !player._infected) {
-        player._infected = true;
-        player._infectTimer = 0;
-        if (notifEl) { notifEl.textContent = '⚠ Infected!'; notifEl.style.color = '#44ff44'; notifEl.classList.remove('show'); void notifEl.offsetWidth; notifEl.classList.add('show'); }
-      } else if (Math.random() < 0.20 && !player._bleeding) {
-        player._bleeding = true;
-        player._bleedTimer = 12;
-        if (notifEl) { notifEl.textContent = '🩸 Bleeding!'; notifEl.style.color = '#ff3333'; notifEl.classList.remove('show'); void notifEl.offsetWidth; notifEl.classList.add('show'); }
+      // Status effects (inherited rates) — respect god mode, spawn protection and
+      // infection immunity, same as the base checkAttack.
+      if (!player.godMode && !(player.spawnProtectionTime > 0)) {
+        const notifEl = document.getElementById('loot-notification');
+        if (Math.random() < 0.15 && !player._infected && !player._immuneInfect) {
+          player._infected = true;
+          player._infectTimer = 0;
+          if (notifEl) { notifEl.textContent = '⚠ Infected!'; notifEl.style.color = '#44ff44'; notifEl.classList.remove('show'); void notifEl.offsetWidth; notifEl.classList.add('show'); }
+        } else if (Math.random() < 0.20 && !player._bleeding) {
+          player._bleeding = true;
+          player._bleedTimer = 12;
+          if (notifEl) { notifEl.textContent = '🩸 Bleeding!'; notifEl.style.color = '#ff3333'; notifEl.classList.remove('show'); void notifEl.offsetWidth; notifEl.classList.add('show'); }
+        }
       }
 
       this.lastAttackTime = 0;
