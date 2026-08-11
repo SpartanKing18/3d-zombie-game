@@ -77,33 +77,50 @@ export class WeaponViewModel {
   // Which item model to hold for this weapon (melee blades only for now — the
   // procedural guns already read fine, and gun models need per-model muzzle work).
   _heldModelKey(cat, nm) {
-    if (cat !== 'melee') return null;
-    if (/machete/.test(nm))       return 'weapon_machete';
-    if (/katana|sword/.test(nm))  return 'weapon_katana';
-    if (/cleaver/.test(nm))       return 'weapon_meat_cleaver';
-    if (/hatchet/.test(nm))       return 'weapon_hatchet';
-    if (/axe/.test(nm))           return 'weapon_axe';
-    if (/golf/.test(nm))          return 'weapon_golf_club';
-    if (/sledge/.test(nm))        return 'weapon_sledgehammer';
-    if (/knife/.test(nm))         return 'weapon_kitchen_knife';
-    return null; // bats/clubs/pipes etc → procedural
+    if (cat === 'melee') {
+      if (/machete/.test(nm))       return 'weapon_machete';
+      if (/katana|sword/.test(nm))  return 'weapon_katana';
+      if (/cleaver/.test(nm))       return 'weapon_meat_cleaver';
+      if (/hatchet/.test(nm))       return 'weapon_hatchet';
+      if (/axe/.test(nm))           return 'weapon_axe';
+      if (/golf/.test(nm))          return 'weapon_golf_club';
+      if (/sledge/.test(nm))        return 'weapon_sledgehammer';
+      if (/knife/.test(nm))         return 'weapon_kitchen_knife';
+      return null; // bats/clubs/pipes etc → procedural
+    }
+    // Guns
+    if (cat === 'revolver')                 return 'weapon_revolver';
+    if (cat === 'pistol')                   return 'weapon_pistol_found';
+    if (cat === 'shotgun')                  return 'weapon_shotgun_found';
+    if (cat === 'sniper' || cat === 'smg')  return 'weapon_rifle_found';
+    if (!cat || cat === 'rifle' || cat === 'assault') return 'weapon_rifle_found';
+    return null;
   }
 
-  // Fit a ground model into the hand: scale to a held length, lay it forward
-  // (blade points -Z), centre it, and render it over the world (no depth clip).
-  _addHeldModel(g, model) {
-    const targetLen = 0.4;
+  // Fit a ground model into the hand: scale to a held length, orient its long axis
+  // forward (-Z), centre it, render over the world. Returns the front (muzzle) Z.
+  _addHeldModel(g, model, cat = 'melee') {
+    // Held length by class: handguns are short, long guns and blades longer.
+    const targetLen = cat === 'melee' ? 0.4
+                    : (cat === 'pistol' || cat === 'revolver') ? 0.3
+                    : 0.55;
     model.updateMatrixWorld(true);
     let bb = new THREE.Box3().setFromObject(model);
-    const sz = new THREE.Vector3(); bb.getSize(sz);
+    let sz = new THREE.Vector3(); bb.getSize(sz);
     const longest = Math.max(sz.x, sz.y, sz.z) || 1;
     model.scale.multiplyScalar(targetLen / longest);
-    // Ground models stand up (blade along +Y); rotate so the length points -Z.
-    model.rotation.x = -Math.PI / 2;
+    // Rotate the model's LONGEST axis to point forward (-Z): melee blades stand up
+    // (+Y long), guns lie sideways (+X long, barrel along X).
+    model.updateMatrixWorld(true);
+    bb = new THREE.Box3().setFromObject(model); bb.getSize(sz);
+    if (sz.x >= sz.y && sz.x >= sz.z)      model.rotation.y = -Math.PI / 2; // X-long → -Z
+    else if (sz.y >= sz.z)                 model.rotation.x = -Math.PI / 2; // Y-long → -Z
+    // (Z-long already points forward)
     model.updateMatrixWorld(true);
     bb = new THREE.Box3().setFromObject(model);
     const c = new THREE.Vector3(); bb.getCenter(c);
     model.position.sub(c);                 // centre in the hand
+    this._heldMuzzleZ = bb.min.z - c.z;    // front of the model, in g-space
     model.traverse(o => {
       if (!o.isMesh) return;
       o.renderOrder = 999;
@@ -145,8 +162,14 @@ export class WeaponViewModel {
     // once it is (update() invalidates currentKey so setWeapon re-runs).
     this._builtWithoutModel = !!(heldKey && !held && !this.game?.itemModelLoader?.ready);
     if (held) {
-      this._addHeldModel(g, held);
-      this.root.position.set(0.2, -0.2, -0.5);
+      this._addHeldModel(g, held, cat);
+      if (cat === 'melee') {
+        this.root.position.set(0.2, -0.2, -0.5);
+      } else {
+        // Guns sit a touch lower/closer and expose a muzzle for the flash.
+        this.root.position.set(0.18, -0.17, -0.5);
+        muzzleZ = this._heldMuzzleZ ?? -0.5;
+      }
     } else if (cat === 'melee') {
       const isBlade = /knife|machete|cleaver|katana|sword|hatchet|axe/.test(nm);
       g.add(this._box(0.035, 0.1, 0.14, grip, 0, -0.02, 0.02)); // handle
