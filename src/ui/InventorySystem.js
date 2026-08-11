@@ -1693,6 +1693,8 @@ export class InventorySystem {
         this.game.scene.scene.remove(mesh);
         geo.dispose(); mat.dispose();
         this.game.particleSystem?.createExplosion(pos.clone());
+        // Blast wave shoves nearby physics props (corpses, debris).
+        this.game.physicsProps?.applyBlast(pos, 6, 34);
         // Damage all zombies in radius
         const zombies = this.game.zombieManager?.getZombies() ?? [];
         zombies.forEach(z => {

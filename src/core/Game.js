@@ -40,6 +40,7 @@ import { WorldItemSystem } from '../systems/WorldItemSystem.js';
 import { ModelRegistry } from '../systems/ModelRegistry.js';
 import { AchievementSystem } from '../systems/AchievementSystem.js';
 import { CombatFeedback } from '../systems/CombatFeedback.js';
+import { PhysicsProps } from '../systems/PhysicsProps.js';
 
 export class Game {
   constructor() {
@@ -135,6 +136,7 @@ export class Game {
     this.worldItemSystem = new WorldItemSystem(this);
     this.achievementSystem = new AchievementSystem(this);
     this.combatFeedback = new CombatFeedback(this);
+    this.physicsProps = new PhysicsProps(this);
     this.setupSettingsKey();
     this.setupDeathScreenHandlers();
     this.setupCutscenes();
@@ -497,6 +499,8 @@ export class Game {
     if (!this.isPaused && this.isRunning && !this.inCutscene) {
       this.update();
       this.physicsWorld.step(Math.min(this.deltaTime, 0.05));
+      // Sync dynamic props (corpses/debris) to their bodies after the step.
+      try { this.physicsProps?.update(); } catch (e) { /* silent */ }
     }
 
     if (this.inCutscene && this.cutsceneScene && this.cutsceneCamera) {

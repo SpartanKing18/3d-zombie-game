@@ -194,11 +194,13 @@ export class TerrainGenerator {
 
     const rawHeight = Math.max(0, height * this.maxHeight * biomeScale);
 
-    // Flatten a large safe zone around the house and its front yard so the player
-    // never exits into hills.  Flat zone: x∈±40, z∈-20..+70.  Transition beyond.
-    const FLAT_X  = 40;  const BLEND_X  = 40;  // flat until ±40, blend to ±80
-    const FLAT_ZF = 70;  const BLEND_ZF = 50;  // front: flat until z=70, blend to z=120
-    const FLAT_ZB = 20;  const BLEND_ZB = 40;  // back : flat until z=-20, blend to z=-60
+    // Flatten a generous zone covering the whole neighborhood (houses out to x=±44,
+    // z=58) AND the industrial lot / factory down the street (to z≈95), so nothing
+    // is ever clipped or covered by the surrounding hills. Hills blend in past the
+    // edges. Flat zone: x∈±58, z∈-25..+105.
+    const FLAT_X  = 58;  const BLEND_X  = 45;  // flat until ±58, blend to ±103
+    const FLAT_ZF = 105; const BLEND_ZF = 45;  // front: flat until z=105, blend to z=150
+    const FLAT_ZB = 25;  const BLEND_ZB = 40;  // back : flat until z=-25, blend to z=-65
 
     const hx = Math.max(0, Math.abs(x) - FLAT_X)  / BLEND_X;
     const hz = z > 0

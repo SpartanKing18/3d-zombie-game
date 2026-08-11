@@ -26,6 +26,7 @@ export class NeighborhoodBuilder {
       { type: 'ew', z: 48,  x0: -46, x1: 46, w: 8 },   // Second St
       { type: 'ns', x: -34, z0: 6,   z1: 54, w: 7 },   // Oak Ave
       { type: 'ns', x: 34,  z0: 6,   z1: 54, w: 7 },   // Pine Ave
+      { type: 'ns', x: 0,   z0: 48,  z1: 76, w: 9 },   // Factory Rd (spur to the factory)
     ];
   }
 
@@ -86,6 +87,10 @@ export class NeighborhoodBuilder {
     this._buildRoads(M);
     this._buildHouses(M);
     this._buildProps(M);
+    this._buildFactory(M);
+    this._buildWrecks(M);
+    this._buildStreetDebris(M);
+    this._spawnCorpses();
   }
 
   // ─── Roads, sidewalks, curbs ────────────────────────────────────────────────
@@ -395,6 +400,197 @@ export class NeighborhoodBuilder {
     const can = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.24, 0.8, 12), M.darkmetal);
     can.position.set(x, 0.4, z); can.castShadow = true; can.receiveShadow = true;
     this.game.scene.addObject(can); this._objects.push(can);
+  }
+
+  // ─── Factory (down Factory Rd, north end of the block) ──────────────────────
+  _buildFactory(M) {
+    const FX = 0, FZ = 88;                 // factory centre, straight down the spur
+    const g = new THREE.Group();
+    g.position.set(FX, 0, FZ);
+
+    const wallM = new THREE.MeshStandardMaterial({ color: 0x8b9196, roughness: 0.82, metalness: 0.3 });
+    const rust  = new THREE.MeshStandardMaterial({ color: 0x6e4a33, roughness: 0.96, metalness: 0.15 });
+    const roofM = new THREE.MeshStandardMaterial({ color: 0x394046, roughness: 0.85, metalness: 0.35 });
+    const glowM = new THREE.MeshStandardMaterial({ color: 0xff7733, emissive: 0xdd5522, emissiveIntensity: 0.8, roughness: 0.6 });
+
+    const W = 34, H = 10, D = 22;
+    const mk = (w, h, d, mat, x, y, z) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; g.add(m); return m;
+    };
+
+    // Main hall
+    mk(W, H, D, wallM, 0, H / 2, 0);
+    // Rusted lower band (weathering)
+    mk(W + 0.05, 2.4, D + 0.05, rust, 0, 1.2, 0);
+    // Sawtooth roof: four angled skylight ridges
+    for (let i = 0; i < 4; i++) {
+      const zc = -D / 2 + 2.8 + i * 5.2;
+      mk(W, 0.35, 5.0, roofM, 0, H + 0.15, zc);
+      const sky = new THREE.Mesh(new THREE.BoxGeometry(W - 2, 1.6, 0.3), M.glass);
+      sky.position.set(0, H + 0.9, zc - 2.2); sky.rotation.x = -0.7; g.add(sky);
+    }
+
+    // Loading dock: three roll-up doors on the front (−z, facing the road)
+    for (let i = -1; i <= 1; i++) {
+      mk(4.2, 4.4, 0.3, M.darkmetal, i * 6.0, 2.4, -D / 2 - 0.16);
+      // ribbed door lines
+      for (let r = 0; r < 5; r++) mk(4.0, 0.06, 0.34, roofM, i * 6.0, 0.8 + r * 0.85, -D / 2 - 0.2);
+    }
+    // Concrete loading ramp
+    const ramp = mk(W - 4, 0.5, 4, M.concrete, 0, 0.25, -D / 2 - 2.4);
+    ramp.userData.noHit = true;
+
+    // Two smokestacks with warning bands + glowing tips
+    for (const sx of [-11, 11]) {
+      const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 12, 14), rust);
+      stack.position.set(sx, H + 6, 6); stack.castShadow = true; g.add(stack);
+      for (let bcol = 0; bcol < 2; bcol++) {
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.8, 14), M.darkmetal);
+        band.position.set(sx, H + 9 + bcol * 2, 6); g.add(band);
+      }
+      const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.9, 0.6, 14), glowM);
+      tip.position.set(sx, H + 12.2, 6); g.add(tip);
+      const pl = new THREE.PointLight(0xff6622, 0.6, 20, 2);
+      pl.position.set(sx, H + 12.2, 6); g.add(pl); this._lights.push(pl);
+    }
+
+    // Rooftop vents / HVAC blocks
+    for (const [vx, vz] of [[-8, 8], [8, 8], [0, 9]]) mk(2.2, 1.2, 2.2, M.darkmetal, vx, H + 0.7, vz);
+
+    // Big rooftop sign board
+    const sign = mk(16, 2.6, 0.3, M.darkmetal, 0, H + 2.2, -D / 2 + 0.4);
+    const letters = new THREE.Mesh(new THREE.BoxGeometry(14, 1.4, 0.12), glowM);
+    letters.position.set(0, H + 2.2, -D / 2 + 0.25); g.add(letters);
+
+    // Perimeter chain-link-ish fence posts along the front
+    for (let px = -W / 2; px <= W / 2; px += 3) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2, 6), M.lamppost);
+      post.position.set(px, 1, -D / 2 - 5); g.add(post);
+    }
+
+    g.traverse(o => { if (o.isMesh && o.userData.noHit === undefined) o.userData.noHit = false; });
+    this.game.scene.addObject(g); this._objects.push(g);
+
+    // Solid collision box for the hall (players/zombies can't walk through it)
+    const body = new CANNON.Body({ mass: 0 });
+    body.addShape(new CANNON.Box(new CANNON.Vec3(W / 2, H / 2, D / 2)));
+    body.position.set(FX, H / 2, FZ);
+    body.collisionFilterGroup = 8; body.collisionFilterMask = 1;
+    this.game.physicsWorld.addBody(body); this._bodies.push(body);
+  }
+
+  // ─── Broken / wrecked cars ──────────────────────────────────────────────────
+  _wreck(x, z, rot, M) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot;
+    const burnt = new THREE.MeshStandardMaterial({ color: 0x24242a, roughness: 0.95, metalness: 0.4 });
+    const rust  = new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 0.98, metalness: 0.2 });
+    const bodyMat = Math.random() < 0.5 ? burnt : rust;
+    // crushed/dented body
+    const lower = this._box(4.2, 0.6, 1.9, bodyMat, 0, 0.6, 0); lower.castShadow = true; g.add(lower);
+    const cabin = this._box(2.1, 0.55, 1.7, bodyMat, -0.2, 1.1, 0);
+    cabin.rotation.z = (Math.random() - 0.5) * 0.14;              // caved-in roof
+    cabin.castShadow = true; g.add(cabin);
+    // shattered windshield (dark)
+    g.add(this._box(1.9, 0.4, 1.55, M.carglass, -0.2, 1.15, 0));
+    // hood popped open
+    const hood = this._box(1.4, 0.06, 1.7, bodyMat, 1.6, 1.0, 0);
+    hood.rotation.z = -0.6; g.add(hood);
+    // some wheels missing / flat — only place two, sunk low
+    const wheels = [[-1.3, 0.85], [1.3, -0.9]];
+    for (const [wx, wz] of wheels) {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.28, 12), M.tire);
+      wheel.rotation.x = Math.PI / 2; wheel.position.set(wx, 0.34, wz); g.add(wheel);
+    }
+    // scorch/oil pool under it
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(1.8, 16),
+      new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 1, transparent: true, opacity: 0.65 }));
+    pool.rotation.x = -Math.PI / 2; pool.position.y = 0.02; pool.userData.noHit = true; g.add(pool);
+
+    g.traverse(o => { if (o.isMesh) o.receiveShadow = true; });
+    this.game.scene.addObject(g); this._objects.push(g);
+
+    const b = new CANNON.Body({ mass: 0 });
+    b.addShape(new CANNON.Box(new CANNON.Vec3(2.1, 0.7, 0.95)));
+    b.position.set(x, 0.7, z); b.quaternion.setFromEuler(0, rot, 0);
+    b.collisionFilterGroup = 8; b.collisionFilterMask = 1;
+    this.game.physicsWorld.addBody(b); this._bodies.push(b);
+  }
+
+  _buildWrecks(M) {
+    const spots = [
+      [-16, 22.5, 0.5], [22, 45.5, -0.3], [8, 74, 1.6],
+      [-8, 70, 0.2], [30, 22, Math.PI / 2 + 0.2], [-30, 47, -0.4],
+    ];
+    for (const [x, z, rot] of spots) if (!this._onRoad(x, z, 0)) this._wreck(x, z, rot, M);
+    // A couple actually ON the road, abandoned at angles (traffic jam feel)
+    this._wreck(-2, 20, 0.35, M);
+    this._wreck(3.5, 48.5, -0.5, M);
+  }
+
+  // ─── Street debris / grime for a lived-in, post-outbreak look ────────────────
+  _buildStreetDebris(M) {
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const trashMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 1 });
+    const boxMat   = new THREE.MeshStandardMaterial({ color: 0x7a5a34, roughness: 1 });
+    const paperMat = new THREE.MeshStandardMaterial({ color: 0xcac4b4, roughness: 1 });
+
+    // Scatter small debris across the streets and yards
+    const debrisSpots = 46;
+    for (let i = 0; i < debrisSpots; i++) {
+      const x = rand(-50, 50), z = rand(10, 80);
+      const kind = Math.floor(Math.random() * 4);
+      let m;
+      if (kind === 0) { // trash bag
+        m = new THREE.Mesh(new THREE.SphereGeometry(rand(0.22, 0.36), 8, 6), trashMat);
+        m.scale.y = 0.8; m.position.set(x, 0.2, z);
+      } else if (kind === 1) { // cardboard box
+        const s = rand(0.3, 0.55);
+        m = new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.7, s), boxMat);
+        m.position.set(x, s * 0.35, z); m.rotation.y = rand(0, Math.PI);
+      } else if (kind === 2) { // flattened newspaper / paper
+        m = new THREE.Mesh(new THREE.PlaneGeometry(rand(0.3, 0.5), rand(0.3, 0.5)), paperMat);
+        m.rotation.x = -Math.PI / 2; m.rotation.z = rand(0, Math.PI); m.position.set(x, 0.05, z);
+        m.userData.noHit = true;
+      } else { // crack/oil stain decal
+        m = new THREE.Mesh(new THREE.CircleGeometry(rand(0.3, 0.8), 10),
+          new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 1, transparent: true, opacity: 0.5 }));
+        m.rotation.x = -Math.PI / 2; m.position.set(x, 0.03, z); m.userData.noHit = true;
+      }
+      m.castShadow = m.userData.noHit ? false : true; m.receiveShadow = true;
+      this.game.scene.addObject(m); this._objects.push(m);
+    }
+
+    // A green dumpster by the factory + a couple tire piles
+    const dumpMat = new THREE.MeshStandardMaterial({ color: 0x2f5a34, roughness: 0.8, metalness: 0.3 });
+    const dump = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.4, 1.3), dumpMat);
+    dump.position.set(-12, 0.7, 78); dump.castShadow = true; dump.receiveShadow = true;
+    this.game.scene.addObject(dump); this._objects.push(dump);
+    const db = new CANNON.Body({ mass: 0 });
+    db.addShape(new CANNON.Box(new CANNON.Vec3(1.2, 0.7, 0.65)));
+    db.position.set(-12, 0.7, 78); db.collisionFilterGroup = 8; db.collisionFilterMask = 1;
+    this.game.physicsWorld.addBody(db); this._bodies.push(db);
+
+    for (const [tx, tz] of [[13, 76], [-14, 24]]) {
+      for (let k = 0; k < 4; k++) {
+        const tire = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.14, 8, 14), M.tire);
+        tire.rotation.x = Math.PI / 2; tire.position.set(tx + rand(-0.2, 0.2), 0.16 + k * 0.22, tz + rand(-0.2, 0.2));
+        tire.castShadow = true; this.game.scene.addObject(tire); this._objects.push(tire);
+      }
+    }
+  }
+
+  // ─── Dead bodies (physics-driven, pushable) ─────────────────────────────────
+  _spawnCorpses() {
+    const pp = this.game.physicsProps;
+    if (!pp) return;
+    const spots = [
+      [-6, 24], [10, 46], [4, 70], [-3, 76], [26, 44],
+      [-24, 22], [14, 22], [-11, 79], [9, 73],
+    ];
+    for (const [x, z] of spots) {
+      try { pp.addCorpse(x, z); } catch (e) { /* silent */ }
+    }
   }
 
   // ─── Cleanup (on restart) ───────────────────────────────────────────────────
