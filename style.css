@@ -3917,3 +3917,39 @@ body.weather-rain  .minimap-container { border-color: rgba(80,130,200,0.3); }
   transition: background 0.2s;
 }
 #controls-card .cc-close:hover { background: rgba(108,255,155,0.28); }
+
+/* ── Floating combat damage numbers (CombatFeedback.js) ─────────────────────── */
+#combat-feedback {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 90;               /* above HUD, below menus/inventory */
+}
+.dmg-number {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-hud, 'Courier New', monospace);
+  font-weight: 800;
+  font-size: 18px;
+  color: #f2f5f8;
+  text-shadow: 0 0 4px rgba(0,0,0,0.9), 0 2px 3px rgba(0,0,0,0.8);
+  will-change: transform, opacity;
+  animation: dmgFloat 0.9s cubic-bezier(0.15, 0.7, 0.3, 1) forwards;
+}
+.dmg-number.crit {
+  color: #ff9a2e;
+  font-size: 23px;
+  text-shadow: 0 0 6px rgba(255,120,0,0.7), 0 2px 3px rgba(0,0,0,0.85);
+}
+.dmg-number.headshot {
+  color: #ffe14d;
+  font-size: 26px;
+  text-shadow: 0 0 8px rgba(255,200,0,0.8), 0 2px 3px rgba(0,0,0,0.9);
+}
+@keyframes dmgFloat {
+  0%   { opacity: 0;   transform: translate(-50%, -50%) scale(0.6); }
+  15%  { opacity: 1;   transform: translate(-50%, -60%) scale(1.12); }
+  30%  {               transform: translate(-50%, -70%) scale(1); }
+  100% { opacity: 0;   transform: translate(-50%, -150%) scale(0.95); }
+}

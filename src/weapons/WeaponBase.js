@@ -146,6 +146,11 @@ export class WeaponBase {
         const critMult = this._rollCrit?.() ?? 1.0;
         const finalDmg = this.damage * critMult;
         zombie.takeDamage(finalDmg, isHeadshot);
+        // Floating damage number at the hit point (yellow headshot / orange crit).
+        game?.combatFeedback?.damageNumber(
+          hit.point, finalDmg,
+          isHeadshot ? 'headshot' : (critMult > 1.0 ? 'crit' : 'normal')
+        );
         if (isHeadshot) { game._headshotCount = (game._headshotCount ?? 0) + 1; }
         if (critMult > 1.0) {
           // Crit hit: orange hitmarker + extra blood

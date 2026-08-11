@@ -39,6 +39,7 @@ import { ParticleSystem } from '../systems/ParticleSystem.js';
 import { WorldItemSystem } from '../systems/WorldItemSystem.js';
 import { ModelRegistry } from '../systems/ModelRegistry.js';
 import { AchievementSystem } from '../systems/AchievementSystem.js';
+import { CombatFeedback } from '../systems/CombatFeedback.js';
 
 export class Game {
   constructor() {
@@ -133,6 +134,7 @@ export class Game {
     this.particleSystem = new ParticleSystem(this.scene.scene);
     this.worldItemSystem = new WorldItemSystem(this);
     this.achievementSystem = new AchievementSystem(this);
+    this.combatFeedback = new CombatFeedback(this);
     this.setupSettingsKey();
     this.setupDeathScreenHandlers();
     this.setupCutscenes();
