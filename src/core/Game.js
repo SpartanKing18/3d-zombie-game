@@ -280,6 +280,11 @@ export class Game {
     const wave = Math.floor(elapsed / 60) + 1;
     const diffMult = Math.min(3, 1 + elapsed / 180);
     const zombCount = this.zombieManager?.getZombieCount() ?? 0;
+    // Only touch the DOM when a displayed value actually changes — this runs every
+    // frame, and the values move ~once per second at most.
+    const sig = wave + '|' + zombCount + '|' + diffMult.toFixed(1);
+    if (sig === this._diffSig) return;
+    this._diffSig = sig;
     const threatCol = diffMult > 2.5 ? '#ff0000' : diffMult > 2 ? '#ff8800' : diffMult > 1.5 ? '#ffdd00' : '#44ff88';
     this._diffEl.innerHTML = `
       <div style="color:${threatCol};font-size:11px;">WAVE ${wave}</div>
@@ -312,7 +317,10 @@ export class Game {
     this.player.poisoned = false;
     this.player._drunkTimer = 0;
     this.player._fearTimer = 0;
+    this.player._fearActive = false;
+    this.player.clearAllSpeedDebuffs?.();
     this.player._moveSpeedMult = 1.0;
+    this.player._dead = false;
     this.player.temperature = 37.0;
     this.player._killStreak = 0;
     this.player._damageFlash = 0;
@@ -393,8 +401,12 @@ export class Game {
       this.isPaused = false;
       this.survivalStartTime = Date.now();
       this._sessionStartTime = Date.now();
-      this.gameLoop();
+      // Mark "indoors" BEFORE the first update() — otherwise that frame ran the
+      // outdoor path: ZombieManager spawned a stray zombie and ChunkManager
+      // generated terrain around the player's initial (0,100,0), the very work the
+      // house start deliberately skips. The stray zombie then lingered forever.
       this.inFriendHouse = true;
+      this.gameLoop();
       this.friendsHouse.buildHouse();
       // Theme music — loops back-to-back automatically
       this.audioManager?.playMusic('/music/the-driest-beast.mp3');
@@ -1848,7 +1860,9 @@ export class Game {
         requestAnimationFrame(fallTick);
       } else {
         crate.position.y = terrainY + 0.45;
-        crate.remove(chute);
+        // (Leave the chute parented to the crate — the crate is removed and its
+        //  whole subtree disposed a few lines down. Detaching it here skipped the
+        //  dispose traverse and leaked the chute's geometry+material each drop.)
         // Impact smoke
         this.particleSystem?.createExplosion?.(new THREE.Vector3(dropX, terrainY, dropZ));
         // Spawn high-tier loot

@@ -235,8 +235,10 @@ export class AcidSpitter extends ZombieBase {
     // Slow player movement by 20% for 3 seconds
     if (!this._playerSlowed) {
       this._playerSlowed = true;
-      if (player._moveSpeedMult === undefined) player._moveSpeedMult = 1.0;
-      player._moveSpeedMult = Math.min(player._moveSpeedMult, 0.8);
+      // Unique per-spitter id so two spitters slowing the player stack correctly and
+      // one expiring doesn't restore full speed while you're still in the other's acid.
+      this._slowId ??= 'acid_' + (AcidSpitter._idCounter = (AcidSpitter._idCounter || 0) + 1);
+      player.applySpeedDebuff?.(this._slowId, 0.8);
 
       const notif = document.getElementById('loot-notification');
       if (notif) {
@@ -256,10 +258,7 @@ export class AcidSpitter extends ZombieBase {
     this._playerSlowTimer -= dt;
     if (this._playerSlowTimer <= 0) {
       this._playerSlowed = false;
-      const player = this.game.player;
-      if (player && player._moveSpeedMult !== undefined) {
-        player._moveSpeedMult = 1.0;
-      }
+      this.game.player?.clearSpeedDebuff?.(this._slowId);
     }
   }
 
@@ -285,10 +284,7 @@ export class AcidSpitter extends ZombieBase {
 
     // Restore player speed if we were slowing them
     if (this._playerSlowed) {
-      const player = this.game.player;
-      if (player && player._moveSpeedMult !== undefined) {
-        player._moveSpeedMult = 1.0;
-      }
+      this.game.player?.clearSpeedDebuff?.(this._slowId);
       this._playerSlowed = false;
     }
 

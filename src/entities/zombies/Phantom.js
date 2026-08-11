@@ -174,11 +174,12 @@ export class Phantom extends ZombieBase {
         }
         // Fear: slow player movement for 3 seconds
         if (!player._fearTimer || player._fearTimer <= 0) {
-          const origSpeed = player.moveSpeed ?? 5;
-          player.moveSpeed = origSpeed * 0.55;
+          // Apply as a game-time move-speed multiplier (Player ticks _fearTimer and
+          // clears the mult on expiry) — never mutate the base moveSpeed, which used
+          // to leak a permanent 55% slow if the player died while feared.
+          player.applySpeedDebuff?.('fear', 0.55);
+          player._fearActive = true;
           player._fearTimer = 3.0;
-          // HUD notification for fear
-          setTimeout(() => { player.moveSpeed = origSpeed; }, 3000);
         }
       }
 

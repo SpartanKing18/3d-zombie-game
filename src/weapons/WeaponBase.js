@@ -191,8 +191,10 @@ export class WeaponBase {
       hole.lookAt(hole.position.x - rayDir.x, hole.position.y - rayDir.y, hole.position.z - rayDir.z);
     }
     game.scene.addObject(hole);
-    // Invalidate raycast cache so the hole doesn't get added to targets
-    game._raycastTargetTime = 0;
+    // NOTE: do NOT invalidate the raycast-target cache here. The hole is tagged
+    // userData.noHit, so the cache build already excludes it — zeroing the cache
+    // timer forced a full-scene traverse on the *next* shot, i.e. every bullet of
+    // a full-auto burst sprayed at a wall re-scanned the entire scene.
     setTimeout(() => { game.scene.removeObject(hole); }, 6000);
   }
 

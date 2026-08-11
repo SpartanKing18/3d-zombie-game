@@ -95,11 +95,15 @@ export class Screamer extends ZombieBase {
         // Guard with a flag so a second scream within the 4s window doesn't capture
         // the already-boosted speed as the "base" (which would make it permanent).
         if (!zombie._screamBoosted && zombie.speed < 6) {
-          zombie._screamBaseSpeed = zombie.speed;
-          zombie.speed *= 1.4;
+          // Share the canonical original speed with the HordeMaster aura (captured
+          // once, before any boost) so the two buffs can't record each other's
+          // inflated value as the base and leave the zombie permanently fast.
+          if (zombie._origSpeed === undefined) zombie._origSpeed = zombie.speed;
+          zombie.speed = zombie._origSpeed * 1.4;
           zombie._screamBoosted = true;
           setTimeout(() => {
-            if (zombie._screamBaseSpeed !== undefined) zombie.speed = zombie._screamBaseSpeed;
+            // Only restore if no HordeMaster aura is currently holding the boost.
+            if (!zombie._hmBoost && zombie._origSpeed !== undefined) zombie.speed = zombie._origSpeed;
             zombie._screamBoosted = false;
           }, 4000);
         }

@@ -1044,30 +1044,15 @@ export class InventorySystem {
     // ── Gear / special usables ────────────────────────────────────────────
     switch (item.type) {
       case 'gear_compass': {
-        // Toggle compass HUD on for 60 seconds
-        const compassEl = document.getElementById('compass-display');
-        if (compassEl) {
-          compassEl.style.display = 'block';
-          clearTimeout(this._compassTimer);
-          this._compassTimer = setTimeout(() => { compassEl.style.display = 'none'; }, 60000);
-        }
+        // Reveal the coordinate/heading readout for 60s. (The #compass heading is
+        // always visible; the useful extra is the coords panel.)
+        this._revealCoords(60000, '🧭 Compass: bearing active (60s)');
         break;
       }
       case 'gear_gps':
       case 'gear_map': {
-        // Show compass + coords for 120 seconds
-        const compassEl = document.getElementById('compass-display');
-        if (compassEl) {
-          compassEl.style.display = 'block';
-          clearTimeout(this._compassTimer);
-          this._compassTimer = setTimeout(() => { compassEl.style.display = 'none'; }, 120000);
-        }
-        const coordsEl = document.getElementById('coords-display');
-        if (coordsEl) {
-          coordsEl.style.display = 'block';
-          clearTimeout(this._coordsTimer);
-          this._coordsTimer = setTimeout(() => { coordsEl.style.display = 'none'; }, 120000);
-        }
+        // Show coords for 120 seconds.
+        this._revealCoords(120000, '🗺️ ' + (item.type === 'gear_gps' ? 'GPS' : 'Map') + ': position locked (120s)');
         break;
       }
       case 'gear_binoculars': {
@@ -1754,6 +1739,25 @@ export class InventorySystem {
     check();
   }
 
+  // Reveal the coords HUD panel for `ms`, with a confirmation notification.
+  _revealCoords(ms, msg) {
+    const coordsEl = document.getElementById('coords-display');
+    if (coordsEl) {
+      coordsEl.style.display = 'block';
+      clearTimeout(this._coordsTimer);
+      this._coordsTimer = setTimeout(() => { coordsEl.style.display = 'none'; }, ms);
+    }
+    const notif = document.getElementById('loot-notification');
+    if (notif && msg) {
+      notif.textContent = msg;
+      notif.style.color = '#aaddff';
+      notif.style.animation = 'none';
+      // reflow to restart the fade animation
+      void notif.offsetWidth;
+      notif.style.animation = '';
+    }
+  }
+
   _showReadable(title, body) {
     const popup = document.getElementById('readable-popup');
     if (!popup) return;
@@ -1769,7 +1773,10 @@ export class InventorySystem {
       this.isOpen = false;
       this.game.resume?.();
       closeBtn.removeEventListener('click', close);
-      document.removeEventListener('keydown', keyClose);
+      // The capture flag MUST match addEventListener's, or removal is a no-op and
+      // this handler leaks — permanently swallowing E/Escape for the rest of the
+      // session (it stopPropagation()s those keys in the capture phase).
+      document.removeEventListener('keydown', keyClose, { capture: true });
     };
     const keyClose = (e) => { if (e.key === 'e' || e.key === 'E' || e.key === 'Escape') { e.stopPropagation(); close(); } };
     closeBtn.addEventListener('click', close);

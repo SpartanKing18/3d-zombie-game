@@ -144,10 +144,12 @@ export class HordeMaster extends ZombieBase {
       const dx = z.position.x - this.position.x;
       const dz = z.position.z - this.position.z;
       if (dx * dx + dz * dz <= 15 * 15) {
-        // Store base speed the first time we see this zombie
-        if (z._baseSpeed === undefined) z._baseSpeed = z.speed;
+        // Use the shared canonical original speed (captured once, before any aura
+        // boost) so we never record a Screamer-inflated value as the "base" and
+        // leave it permanently fast.
+        if (z._origSpeed === undefined) z._origSpeed = z.speed;
         // Apply boost
-        z.speed = z._baseSpeed * 1.35;
+        z.speed = z._origSpeed * 1.35;
         z._hmBoost = true;
         z._dmgReduction = 0.25;
         newBoosted.add(z);
@@ -157,7 +159,7 @@ export class HordeMaster extends ZombieBase {
     // Any zombie no longer in range: restore speed
     for (const z of this._boostedZombies) {
       if (!newBoosted.has(z) && !z._dead) {
-        if (z._baseSpeed !== undefined) z.speed = z._baseSpeed;
+        if (z._origSpeed !== undefined) z.speed = z._origSpeed;
         z._hmBoost = false;
         z._dmgReduction = 0;
       }
@@ -169,7 +171,7 @@ export class HordeMaster extends ZombieBase {
   _restoreAllBoosted() {
     for (const z of this._boostedZombies) {
       if (!z._dead) {
-        if (z._baseSpeed !== undefined) z.speed = z._baseSpeed;
+        if (z._origSpeed !== undefined) z.speed = z._origSpeed;
         z._hmBoost = false;
         z._dmgReduction = 0;
       }

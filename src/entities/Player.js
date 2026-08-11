@@ -298,9 +298,16 @@ export class Player {
       this._drunkTimer -= deltaTime;
     }
 
-    // Phantom "fear" debuff timer — must tick down so a later backstab can re-apply it
+    // Phantom "fear" debuff timer — must tick down so a later backstab can re-apply
+    // it. The slow is applied as _moveSpeedMult (game-time), so when it expires we
+    // clear the multiplier here rather than via a real-time setTimeout that would
+    // desync on pause and survive death/respawn.
     if (this._fearTimer > 0) {
       this._fearTimer -= deltaTime;
+      if (this._fearTimer <= 0) {
+        this._fearTimer = 0;
+        if (this._fearActive) { this.clearSpeedDebuff('fear'); this._fearActive = false; }
+      }
     }
 
     if (this.jumpCooldown > 0) {
@@ -788,9 +795,12 @@ export class Player {
 
   gainXP(amount, reason = '') {
     this.xp += amount;
-    const xpForLevel = this.level * 120;
-    if (this.xp >= xpForLevel) {
-      this.xp -= xpForLevel;
+    // Loop so a single large award (stealth + streak kill, quest reward, etc.) can
+    // grant multiple levels instead of stranding XP above the next threshold with
+    // the bar clamped at 100%. Capped defensively so it can never spin forever.
+    let guard = 0;
+    while (this.xp >= this.level * 120 && guard++ < 50) {
+      this.xp -= this.level * 120;
       this.level++;
       this._applyLevelPerks(this.level);
       this.maxHealth = Math.min(200, this.maxHealth + 5);
@@ -882,6 +892,32 @@ export class Player {
     if (this._xpLabel) this._xpLabel.textContent = `LVL ${this.level}  ${Math.floor(this.xp)} / ${this.level * 120} XP`;
   }
 
+  // ── Move-speed debuffs (stacking-safe) ────────────────────────────────────
+  // Several slow sources (each acid pool, phantom fear) register by a unique id;
+  // the strongest (lowest) multiplier wins. Clearing one source no longer cancels
+  // another that is still active — the old single-scalar approach let the first
+  // acid pool to expire restore full speed while you stood in a second one.
+  applySpeedDebuff(id, mult) {
+    if (!this._speedDebuffs) this._speedDebuffs = {};
+    this._speedDebuffs[id] = mult;
+    this._recomputeMoveMult();
+  }
+  clearSpeedDebuff(id) {
+    if (this._speedDebuffs && id in this._speedDebuffs) {
+      delete this._speedDebuffs[id];
+      this._recomputeMoveMult();
+    }
+  }
+  clearAllSpeedDebuffs() {
+    this._speedDebuffs = {};
+    this._moveSpeedMult = 1.0;
+  }
+  _recomputeMoveMult() {
+    let m = 1.0;
+    if (this._speedDebuffs) for (const v of Object.values(this._speedDebuffs)) if (v < m) m = v;
+    this._moveSpeedMult = m;
+  }
+
   takeDamage(amount, sourcePosition) {
     if (this.godMode) return;
     if (this.spawnProtectionTime > 0) return; // brief invulnerability after (re)spawn
@@ -957,6 +993,12 @@ export class Player {
   }
 
   die() {
+    // Guard against multiple death causes firing in the same frame (bleed +
+    // infection + starvation can all call die() in one update()) — the first one
+    // wins, so the death-cause shown matches what actually killed you and pause()
+    // isn't hammered.
+    if (this._dead) return;
+    this._dead = true;
     const deathScreen = document.getElementById('death-screen');
     if (!deathScreen) return;
     deathScreen.style.display = 'flex';

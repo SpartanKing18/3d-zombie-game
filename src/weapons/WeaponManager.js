@@ -220,10 +220,16 @@ export class WeaponManager {
     const container = this._weaponHudEl;
     if (!container) return;
 
-    // Throttle full rebuild to ~10 Hz so ammo counters stay fresh without DOM spam
-    const now = performance.now();
-    if (this._hudLastRebuild && now - this._hudLastRebuild < 100) return;
-    this._hudLastRebuild = now;
+    // Only rebuild when something shown actually changed (loadout, selection, or a
+    // weapon's ammo). Otherwise this wiped and recreated 9 divs + click listeners
+    // ~10×/sec forever, even while idle.
+    let sig = this.currentWeaponIndex + ';';
+    for (let i = 0; i < 9; i++) {
+      const w = this.weapons[i];
+      sig += w ? `${w.name},${w.magSize <= 0 ? 'm' : w.ammoInMag + '/' + w.reserveAmmo}|` : '-|';
+    }
+    if (sig === this._hudSig) return;
+    this._hudSig = sig;
 
     container.innerHTML = '';
     // The weapon HUD is the 9-slot hotbar: weapons fill from slot 1, the rest
