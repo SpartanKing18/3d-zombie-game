@@ -33,6 +33,18 @@ export class ZombieHound extends ZombieBase {
   }
 
   createMesh() {
+    // Prefer the animated wolf model; fall back to the procedural dog.
+    const rig = this.game.houndModelLoader?.createInstance?.();
+    if (rig) {
+      this._modelRig = rig;
+      this._modelMixer = rig.mixer;
+      this.headshotY = 0.1;
+      this._healthBarHeight = 0.55;
+      this.finalizeMesh(rig.group);
+      rig.play('idle');
+      return;
+    }
+
     // Fully custom quadruped. The physics body center rides 0.9m above the
     // ground (base grounding clamp), so the dog is built low: it stands on
     // local y = -0.9, shoulder ~0.65m above ground (local ~ -0.25).

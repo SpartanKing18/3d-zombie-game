@@ -10,6 +10,7 @@ import { Player } from '../entities/Player.js';
 import { ZombieManager } from '../entities/ZombieManager.js';
 import { zombieDisplayName } from '../entities/zombies/ZombieBase.js';
 import { ZombieModelLoader } from '../entities/zombies/ZombieModelLoader.js';
+import { HoundModelLoader } from '../entities/zombies/HoundModelLoader.js';
 import { VehicleManager } from '../entities/VehicleManager.js';
 import { TerrainGenerator } from '../world/TerrainGenerator.js';
 import { ChunkManager } from '../world/ChunkManager.js';
@@ -90,6 +91,7 @@ export class Game {
     // Start loading the optional external zombie model before any zombie spawns.
     // Zombies fall back to the procedural body until (and unless) it's ready.
     this.zombieModelLoader = new ZombieModelLoader();
+    this.houndModelLoader = new HoundModelLoader();
     // Small pickups: fit each to ~0.42 m; furniture: uniform 2.2× (Kenney units→m), grounded.
     this.itemModelLoader = new ModelRegistry({ label: 'ItemModels' });
     this.furnitureModelLoader = new ModelRegistry({
