@@ -1695,11 +1695,18 @@ export class InventorySystem {
         this.game.particleSystem?.createExplosion(pos.clone());
         // Blast wave shoves nearby physics props (corpses, debris).
         this.game.physicsProps?.applyBlast(pos, 6, 34);
-        // Damage all zombies in radius
+        // Damage all zombies in radius — and record a radial "hit" so anything that
+        // dies gets launched away from the blast (COD-style).
         const zombies = this.game.zombieManager?.getZombies() ?? [];
         zombies.forEach(z => {
           const d = z.position.distanceTo(pos);
-          if (d < 5) z.takeDamage(damage * (1 - d / 5));
+          if (d < 5) {
+            const dx = z.position.x - pos.x, dz = z.position.z - pos.z;
+            const dl = Math.hypot(dx, dz) || 1;
+            z._lastHitDir = { x: dx / dl, y: 0.6, z: dz / dl };
+            z._lastHitForce = 60 * (1 - d / 5);
+            z.takeDamage(damage * (1 - d / 5));
+          }
         });
         // Damage player if too close
         const player = this.game.player;

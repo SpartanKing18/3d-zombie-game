@@ -145,6 +145,9 @@ export class WeaponBase {
         const isHeadshot = hitY > (zombieY + (zombie.headshotY ?? 0.9));
         const critMult = this._rollCrit?.() ?? 1.0;
         const finalDmg = this.damage * critMult;
+        // Record the shot direction/force so die() can throw a ragdoll the right way.
+        zombie._lastHitDir = { x: direction.x, y: direction.y, z: direction.z };
+        zombie._lastHitForce = this.damage * critMult * (isHeadshot ? 1.4 : 1);
         zombie.takeDamage(finalDmg, isHeadshot);
         // Floating damage number at the hit point (yellow headshot / orange crit).
         game?.combatFeedback?.damageNumber(

@@ -938,8 +938,11 @@ export class ZombieBase {
       this.body = null;
     }
 
-    // Death fall animation: tip zombie over 0.5s before removing mesh
-    if (this.mesh) {
+    // COD-style physics death: throw a ragdoll from the killing blow instead of the
+    // scripted tip-and-fade (normal humanoid zombies only).
+    if (this.mesh && this.game.physicsProps && this._useRagdollDeath()) {
+      this._ragdollDeath();
+    } else if (this.mesh) {
       const mesh = this.mesh;
       this.mesh = null; // prevent updateMeshPosition from touching it
       this._corpseMesh = mesh; // kept so a Necromancer can revive this corpse
@@ -1007,6 +1010,59 @@ export class ZombieBase {
 
     // Drop loot
     this.dropLoot();
+  }
+
+  // Which zombies get a physics ragdoll on death: normal humanoids. Quadrupeds
+  // (hound) and the huge bosses keep their scripted death (a generic humanoid
+  // ragdoll would look wrong for them).
+  _useRagdollDeath() {
+    const skip = ['zombie_hound', 'mutant_giant', 'juggernaut'];
+    return !skip.includes(this.type);
+  }
+
+  _ragdollScale() {
+    // Scale the ragdoll to the zombie's rough size (health-bar height tracks it).
+    const h = this._healthBarHeight || 2.0;
+    return Math.max(0.55, Math.min(1.15, h / 2.6));
+  }
+
+  // Remove the drawn zombie now and spawn a physics ragdoll launched by the last hit.
+  _ragdollDeath() {
+    const mesh = this.mesh;
+    this.mesh = null;
+    this.game.scene.removeObject(mesh);
+    this._corpseMesh = null;
+    this._corpseDisposed = true;
+    this._modelRig?.stop?.();
+    this._modelMixer = null;
+    const seen = new Set();
+    mesh.traverse(c => {
+      if (!c.isMesh) return;
+      c.geometry?.dispose?.();
+      if (c.isSkinnedMesh) c.skeleton?.dispose?.();
+      const mats = Array.isArray(c.material) ? c.material : [c.material];
+      for (const m of mats) { if (m && !seen.has(m)) { seen.add(m); m.dispose?.(); } }
+    });
+    const corpses = this.game._deadZombieCorpses;
+    const ci = corpses ? corpses.indexOf(this) : -1;
+    if (ci >= 0) corpses.splice(ci, 1);   // ragdolled → not revivable by a Necromancer
+
+    const gx = this.position.x, gz = this.position.z;
+    const gy = this.game.inFriendHouse
+      ? this.position.y - 0.85
+      : (this.game.terrainGenerator?.getHeightAt(gx, gz) ?? this.position.y - 0.85);
+    const dir = this._lastHitDir || { x: 0, y: 0.5, z: 0 };
+    const f = Math.min(15, 5 + (this._lastHitForce || 18) * 0.22);
+    const impulse = {
+      x: dir.x * f,
+      y: Math.max(0.15, Math.abs(dir.y)) * f * 0.4 + 3.5,   // always some upward pop
+      z: dir.z * f,
+    };
+    try {
+      this.game.physicsProps.addCorpse(gx, gz, {
+        lying: false, death: true, y: gy, impulse, zombie: true, scale: this._ragdollScale(),
+      });
+    } catch (e) { /* fall back silently to no corpse */ }
   }
 
   // Bring a corpse back to life (Necromancer). Restores the kept corpse mesh,

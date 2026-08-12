@@ -129,10 +129,12 @@ export class PhysicsProps {
       upperLegSize = 0.2 * s, lowerLegSize = 0.2 * s, lowerLegLength = 0.5 * s;
     const mass = opts.mass ?? 1.4;
 
-    // Materials (per corpse, a couple of variations).
-    const skinCol  = [0xb99a7d, 0xa88a6b, 0xc7a888][Math.floor((x * 3 + z) % 3 + 3) % 3];
-    const shirtCol = [0x3a4a5a, 0x5a3a34, 0x4a4a44, 0x2f3a2c][Math.floor((x + z * 2) % 4 + 4) % 4];
-    const pantsCol = [0x2a2c33, 0x3a352c, 0x24303a][Math.floor((x * 2 + z) % 3 + 3) % 3];
+    // Materials (per corpse, a couple of variations). Zombie death-ragdolls get
+    // rotten greenish skin + tattered dark clothes.
+    const i3 = Math.floor((x * 3 + z) % 3 + 3) % 3, i4 = Math.floor((x + z * 2) % 4 + 4) % 4;
+    const skinCol  = opts.zombie ? [0x6b7a4a, 0x5a6a3e, 0x76824f][i3] : [0xb99a7d, 0xa88a6b, 0xc7a888][i3];
+    const shirtCol = opts.zombie ? [0x3a3f36, 0x4a3f36, 0x33402f, 0x2f342c][i4] : [0x3a4a5a, 0x5a3a34, 0x4a4a44, 0x2f3a2c][i4];
+    const pantsCol = opts.zombie ? [0x2c2f28, 0x33352c, 0x252a24][i3] : [0x2a2c33, 0x3a352c, 0x24303a][i3];
     const skinM  = new THREE.MeshStandardMaterial({ color: skinCol,  roughness: 0.85 });
     const shirtM = new THREE.MeshStandardMaterial({ color: shirtCol, roughness: 0.9 });
     const pantsM = new THREE.MeshStandardMaterial({ color: pantsCol, roughness: 0.9 });
@@ -184,11 +186,10 @@ export class PhysicsProps {
     const lLArm = bodyAt(-hs - upperArmLength - lowerArmLength / 2, yArm, 0, armHe, shirtM);
     const lRArm = bodyAt( hs + upperArmLength + lowerArmLength / 2, yArm, 0, armHe, shirtM);
 
-    // Tip the whole (still upright) assembly onto its back BEFORE jointing it, so the
-    // corpse spawns lying flat on the ground instead of collapsing from standing into
-    // a compact heap. A rigid rotation preserves every relative transform, so the
-    // ConeTwist joints created next take this sprawled pose as their rest state.
-    {
+    // Pre-placed corpses (opts.lying !== false) are tipped onto their back BEFORE
+    // jointing so they spawn already lying flat. Death ragdolls stay upright and get
+    // thrown by an impulse below, so they collapse/fly from the killing blow.
+    if (opts.lying !== false) {
       const pivot = new CANNON.Vec3(x, gy, z);
       const tip = new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2 + (Math.sin(x * 3.1) * 0.25));
       const yaw = new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0, 1, 0), x * 1.3 + z * 0.7);
@@ -233,9 +234,40 @@ export class PhysicsProps {
     cone(uLArm, lLArm, V(-al, 0, 0), V(al, 0, 0), X, X, aA);
     cone(uRArm, lRArm, V( al, 0, 0), V(-al, 0, 0), X, X, aA);
 
-    const rd = { parts, constraints, frozen: false, winTime: 0, winPos: null, age: 0 };
+    const rd = { parts, constraints, frozen: false, winTime: 0, winPos: null, age: 0, death: !!opts.death };
     this.ragdolls.push(rd);
+
+    // Throw the whole body with the killing blow's impulse (COD-style ragdoll death).
+    if (opts.impulse) {
+      const imp = new CANNON.Vec3(opts.impulse.x, opts.impulse.y, opts.impulse.z);
+      for (const p of parts) p.body.applyImpulse(imp);
+    }
+
+    if (opts.death) this._capDeathRagdolls();
     return rd;
+  }
+
+  // Keep only the most recent death ragdolls so kills can't grow the body count
+  // without bound. Pre-placed corpses (death=false) are never culled.
+  _capDeathRagdolls() {
+    const MAX = 10;
+    const deaths = this.ragdolls.filter(r => r.death);
+    if (deaths.length <= MAX) return;
+    const cull = deaths.slice(0, deaths.length - MAX);
+    for (const rd of cull) this._disposeRagdoll(rd);
+  }
+
+  _disposeRagdoll(rd) {
+    const world = this.game.physicsWorld;
+    for (const c of rd.constraints) world.removeConstraint(c);
+    for (const p of rd.parts) {
+      world.removeBody(p.body);
+      this.game.scene.removeObject?.(p.mesh);
+      p.mesh.geometry?.dispose?.();
+      const m = p.mesh.material; (Array.isArray(m) ? m : [m]).forEach(x => x?.dispose?.());
+    }
+    const i = this.ragdolls.indexOf(rd);
+    if (i >= 0) this.ragdolls.splice(i, 1);
   }
 
   dispose() {
