@@ -91,11 +91,24 @@ export class WeaponBase {
     game?.audioManager?.resume?.();
     game?.audioManager?.playGunshot?.();
 
-    // Camera recoil: kick pitch up, recover smoothly in Player.update()
+    // Camera recoil: kick the view up (recovered in Player.update) plus a smaller
+    // horizontal snap, with a full-auto climb — sustained fire kicks progressively
+    // harder — and reduced kick while aiming down sights, COD-style.
     if (game?.player) {
-      const kick = this.recoil * 0.07;
+      const nowMs = performance.now();
+      // Reset the climb if it's been a beat since the last shot.
+      if (nowMs - (this._lastShotAt || 0) > 350) this._recoilHeat = 0;
+      this._lastShotAt = nowMs;
+      this._recoilHeat = Math.min(1, (this._recoilHeat || 0) + 0.16);
+      const rMul = (game._adsActive ? 0.55 : 1) * (1 + this._recoilHeat * 0.7);
+
+      const kick = this.recoil * 0.07 * rMul;
       game.player.pitch = Math.max(-game.player.maxPitch, game.player.pitch - kick);
-      game.player._recoilRecovery = (game.player._recoilRecovery || 0) + kick * 0.75;
+      game.player._recoilRecovery = (game.player._recoilRecovery || 0) + kick * 0.8;
+      // Horizontal: random left/right with a mild per-weapon bias so it feels like a
+      // pattern rather than pure noise.
+      const hbias = (this._recoilBias ??= (Math.random() < 0.5 ? -1 : 1) * 0.3);
+      game.player.yaw += (((Math.random() - 0.5) * 2) + hbias) * this.recoil * 0.012 * rMul;
     }
 
     // First-person viewmodel recoil + muzzle flash
@@ -131,6 +144,17 @@ export class WeaponBase {
       if (ud.zombie && !ud.zombie.isAlive()) continue;
       hit = cand;
       break;
+    }
+
+    // Tracer round: streak from a muzzle-ish point (down-right of the camera) to the
+    // impact (or the max range if it hits nothing). Guns only — melee has magSize<=0.
+    if (this.magSize > 0 && game?.particleSystem?.createTracer) {
+      if (!this._trStart) { this._trStart = new THREE.Vector3(); this._trEnd = new THREE.Vector3(); this._trRight = new THREE.Vector3(); }
+      const end = hit ? hit.point : this._trEnd.copy(position).addScaledVector(direction, this.range);
+      this._trRight.set(0, 1, 0).cross(direction).normalize();   // camera-right
+      this._trStart.copy(position).addScaledVector(this._trRight, 0.16).addScaledVector(direction, 0.35);
+      this._trStart.y -= 0.14;
+      game.particleSystem.createTracer(this._trStart, end);
     }
 
     if (hit) {

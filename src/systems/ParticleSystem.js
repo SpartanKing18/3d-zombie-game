@@ -13,6 +13,7 @@ const GEO = {
   spark:  new THREE.BoxGeometry(0.04, 0.04, 0.18),
   debris: new THREE.BoxGeometry(0.09, 0.05, 0.09),
   decal:  new THREE.CircleGeometry(1, 16),
+  tracer: new THREE.BoxGeometry(0.045, 0.045, 1),  // unit length along Z, scaled per shot
 };
 const _halfScale = new THREE.Vector3(0.5, 0.5, 0.5);
 const _zeroScale = new THREE.Vector3(0.01, 0.01, 0.01);
@@ -255,8 +256,44 @@ export class ParticleSystem {
     }
   }
 
+  // A glowing tracer round streaking from the muzzle to the impact point.
+  createTracer(start, end, color = 0xffe08a) {
+    if (!this._tracers) this._tracers = [];
+    if (this._tracers.length > 36) return;
+    const dx = end.x - start.x, dy = end.y - start.y, dz = end.z - start.z;
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (len < 0.3 || len > 500) return;
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    const t = new THREE.Mesh(GEO.tracer, mat);
+    t.position.set((start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2);
+    t.lookAt(end.x, end.y, end.z);   // box's local +Z aims down the shot
+    t.scale.set(1, 1, len);
+    t.userData.noHit = true;
+    t._life = 0.06; t._maxLife = 0.06; t._mat = mat;
+    this.scene.add(t);
+    this._tracers.push(t);
+  }
+
+  _updateTracers(deltaTime) {
+    if (!this._tracers) return;
+    for (let i = this._tracers.length - 1; i >= 0; i--) {
+      const t = this._tracers[i];
+      t._life -= deltaTime;
+      if (t._life <= 0) {
+        this.scene.remove(t); t._mat.dispose();
+        this._tracers[i] = this._tracers[this._tracers.length - 1];
+        this._tracers.pop();
+        continue;
+      }
+      t._mat.opacity = 0.85 * (t._life / t._maxLife);
+    }
+  }
+
   update(deltaTime) {
     this._updateDecals(deltaTime);
+    this._updateTracers(deltaTime);
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= deltaTime;
