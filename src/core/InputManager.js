@@ -108,7 +108,13 @@ export class InputManager {
       canvas.webkitRequestPointerLock;
 
     if (canvas.requestPointerLock && !document.pointerLockElement) {
-      canvas.requestPointerLock();
+      try {
+        // Chrome returns a promise that REJECTS if pointer lock is requested too soon
+        // after the user exited it ("cannot be acquired immediately after…"). Swallow
+        // it so it doesn't surface as an uncaught SecurityError in the console.
+        const r = canvas.requestPointerLock();
+        if (r && typeof r.catch === 'function') r.catch(() => {});
+      } catch (_) { /* older browsers can throw synchronously */ }
     }
   }
 

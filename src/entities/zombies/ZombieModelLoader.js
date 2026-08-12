@@ -164,6 +164,20 @@ export class ZombieModelLoader {
           }
         } catch (_) { /* skip this clip */ }
       }
+      // Drop animation tracks that target nodes not in the rig. Some FBX clips
+      // reference helper nodes (e.g. "group3") that don't survive skeleton cloning,
+      // which makes three.js log "No target node found" on every zombie spawn.
+      const nodeNames = new Set();
+      scene.traverse(o => { if (o.name) nodeNames.add(o.name); });
+      for (const c of clips) {
+        c.tracks = c.tracks.filter(t => {
+          try {
+            const n = THREE.PropertyBinding.parseTrackName(t.name).nodeName;
+            return !n || nodeNames.has(n);
+          } catch (_) { return true; }
+        });
+      }
+
       this._stateClips = this._mapClips(clips);
 
       const matched = Object.entries(this._stateClips)
