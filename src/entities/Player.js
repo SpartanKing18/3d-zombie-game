@@ -187,6 +187,21 @@ export class Player {
   update(deltaTime) {
     this._dt = deltaTime;
 
+    // NaN safety net: if a physics blow-up (e.g. a contact with a corrupted body)
+    // ever sends the player body to a non-finite position, the camera matrix goes
+    // NaN and the screen renders black. Snap back to the last good spot instead.
+    const bp = this.body?.position;
+    if (bp) {
+      if (!Number.isFinite(bp.x) || !Number.isFinite(bp.y) || !Number.isFinite(bp.z)) {
+        const g = this._lastGoodPos || { x: 0, y: 3, z: 0 };
+        bp.set(g.x, g.y, g.z);
+        this.body.velocity.set(0, 0, 0);
+      } else {
+        (this._lastGoodPos ||= { x: 0, y: 0, z: 0 });
+        this._lastGoodPos.x = bp.x; this._lastGoodPos.y = bp.y; this._lastGoodPos.z = bp.z;
+      }
+    }
+
     // Temporary buff timers
     if (this._speedBoostTimer > 0) {
       this._speedBoostTimer -= deltaTime;

@@ -60,6 +60,24 @@ export class Game {
     this.camera = this.scene.getCamera();
     this.renderer = this.scene.getRenderer();
 
+    // WebGL context-loss recovery. WITHOUT preventDefault() a lost context — GPU
+    // reset, driver hiccup, or a resource/VRAM spike (lots of lights, particles,
+    // ragdolls) — blacks the canvas PERMANENTLY. With it, the browser fires
+    // webglcontextrestored and three.js re-uploads GPU resources on the next draw.
+    const glCanvas = this.renderer?.domElement || document.getElementById('game-canvas');
+    if (glCanvas) {
+      glCanvas.addEventListener('webglcontextlost', (e) => {
+        e.preventDefault();
+        this._glLost = true;
+        console.warn('[Game] WebGL context lost — auto-recovering…');
+      }, false);
+      glCanvas.addEventListener('webglcontextrestored', () => {
+        this._glLost = false;
+        try { this.renderer.shadowMap.needsUpdate = true; } catch (_) {}
+        console.warn('[Game] WebGL context restored');
+      }, false);
+    }
+
     this.lastTime = performance.now();
     this.currentTime = performance.now();
     this.deltaTime = 0;
@@ -481,6 +499,9 @@ export class Game {
   gameLoop = () => {
     requestAnimationFrame(this.gameLoop);
 
+    // Don't touch a lost GL context — wait for webglcontextrestored.
+    if (this._glLost) return;
+
     const now = performance.now();
     this.currentTime = now;
     this.deltaTime = (now - this.lastTime) / 1000;
@@ -497,10 +518,13 @@ export class Game {
     }
 
     if (!this.isPaused && this.isRunning && !this.inCutscene) {
-      this.update();
-      this.physicsWorld.step(Math.min(this.deltaTime, 0.05));
-      // Sync dynamic props (corpses/debris) to their bodies after the step.
-      try { this.physicsProps?.update(Math.min(this.deltaTime, 0.05)); } catch (e) { /* silent */ }
+      // Guard the whole sim so a transient error never skips the render below
+      // (which would freeze the last frame on screen).
+      try {
+        this.update();
+        this.physicsWorld.step(Math.min(this.deltaTime, 0.05));
+        this.physicsProps?.update(Math.min(this.deltaTime, 0.05));
+      } catch (e) { console.error('[gameLoop]', e); }
     }
 
     if (this.inCutscene && this.cutsceneScene && this.cutsceneCamera) {
@@ -1950,6 +1974,9 @@ export class Game {
     };
     ov.addEventListener('transitionend', onBlack, { once: true });
     setTimeout(onBlack, 300); // fallback if transitionend never fires
+    // Hard safety: no matter what, the black overlay must be gone shortly after —
+    // it must never get stuck opaque and black the whole screen.
+    setTimeout(() => { ov.style.opacity = '0'; }, 1600);
     requestAnimationFrame(() => { ov.style.opacity = '1'; });
   }
 

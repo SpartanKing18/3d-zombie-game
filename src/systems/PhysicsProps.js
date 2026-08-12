@@ -30,7 +30,17 @@ export class PhysicsProps {
 
   update(dt = 0.016) {
     const pp = this.game.player?.getPosition?.();
-    for (const rd of this.ragdolls) {
+    // Backward iteration so a corrupted ragdoll can be disposed mid-loop safely.
+    for (let ri = this.ragdolls.length - 1; ri >= 0; ri--) {
+      const rd = this.ragdolls[ri];
+      // NaN guard: a blown-up constraint can fling a body to a non-finite position;
+      // if that body then touches the player, the contact solver corrupts the PLAYER
+      // body too (NaN camera → black screen). Drop the bad ragdoll before that.
+      const bp0 = rd.parts[4].body.position;
+      if (!Number.isFinite(bp0.x) || !Number.isFinite(bp0.y) || !Number.isFinite(bp0.z)) {
+        this._disposeRagdoll(rd);
+        continue;
+      }
       if (rd.frozen) {
         // Wake if the player wanders close enough to shove it.
         if (pp) {
