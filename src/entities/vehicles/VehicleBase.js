@@ -77,67 +77,74 @@ export class VehicleBase {
   createMesh() {
     const group = new THREE.Group();
 
-    // Real car model (Kenney Car Kit), scaled to this chassis. Falls back to a simple
-    // box if the model loader isn't ready yet (rare — vehicles spawn well after load).
+    // Real car model (Quaternius Cars, CC0 — sleek, realistically proportioned).
+    // Falls back to a box if the loader isn't ready (rare — cars spawn well after load).
     const reg = this.game.vehicleModelLoader;
     let model = null;
     if (reg?.ready) {
-      const keys = ['sedan', 'sedan-sports', 'suv', 'van', 'truck', 'taxi', 'police', 'hatchback-sports'];
+      const keys = ['normalcar1', 'normalcar2', 'sportscar', 'sportscar2', 'suv2', 'taxi2', 'cop'];
       const key = this.modelKey || keys[(Math.random() * keys.length) | 0];
       model = reg.createModel(key);
     }
 
     if (model) {
+      // Face the model +Z (chassis front): the front-wheel nodes tell us which end
+      // is the front, so we flip only if they sit at -Z.
+      const wpz = new THREE.Vector3();
+      let frontZ = 0, nf = 0;
+      model.updateMatrixWorld(true);
+      model.traverse(o => {
+        const n = (o.name || '').toLowerCase();
+        if (n.includes('wheel') && n.includes('front')) { o.getWorldPosition(wpz); frontZ += wpz.z; nf++; }
+      });
+      model.rotation.y = (nf && frontZ / nf < 0) ? Math.PI : 0;
+
       model.updateMatrixWorld(true);
       let bb = new THREE.Box3().setFromObject(model);
       const sz = new THREE.Vector3(); bb.getSize(sz);
-      const s = this.length / (sz.z || 1);          // scale so the model's length = chassis length
+      const s = this.length / (sz.z || 1);          // scale so model length = chassis length
       model.scale.setScalar(s);
       model.updateMatrixWorld(true);
       bb = new THREE.Box3().setFromObject(model);
       const c = new THREE.Vector3(); bb.getCenter(c);
-      model.position.x -= c.x; model.position.z -= c.z;   // centre on the chassis in XZ
-      // Drop the model so its wheels sit at the chassis wheel-contact line.
-      const wheelBottom = -this.height / 2 - 1.0;
-      model.position.y -= bb.min.y - wheelBottom;
-      model.rotation.y = Math.PI;                   // Kenney cars face -Z; chassis front is +Z
-      // Upgrade to reflective automotive paint. The scene's image-based environment
-      // then gives the body real reflections + a clearcoat sheen (much closer to a
-      // real car than the flat matte colormap); wheels stay dark rubber.
+      model.position.x -= c.x; model.position.z -= c.z;   // centre on the chassis
+      model.position.y -= bb.min.y - (-this.height / 2 - 1.0);   // wheels on the contact line
+
+      // Per-material treatment by name: glossy paint on the body, dark reflective
+      // glass, emissive head/tail lights, matte trim/tyres.
       model.traverse(o => {
         if (!o.isMesh || !o.material) return;
         o.castShadow = true; o.receiveShadow = true;
         let isWheel = false;
         for (let par = o; par; par = par.parent) {
-          if (par.name && par.name.toLowerCase().startsWith('wheel')) { isWheel = true; break; }
+          if (par.name && par.name.toLowerCase().includes('wheel')) { isWheel = true; break; }
         }
         const m = Array.isArray(o.material) ? o.material[0] : o.material;
-        if (isWheel) {
-          m.metalness = 0.5; m.roughness = 0.55; m.envMapIntensity = 0.9;
+        const nm = (m.name || '').toLowerCase();
+        if (nm.includes('window') || nm.includes('glass')) {
+          o.material = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(0x0a0e12), metalness: 0.1, roughness: 0.06, clearcoat: 1, envMapIntensity: 2.4 });
+        } else if (nm.includes('headlight')) {
+          o.material = new THREE.MeshStandardMaterial({ color: 0xfff4cc, emissive: 0xfff0b0, emissiveIntensity: 0.7, roughness: 0.3 });
+        } else if (nm.includes('taillight')) {
+          o.material = new THREE.MeshStandardMaterial({ color: 0x7a1818, emissive: 0xff2222, emissiveIntensity: 0.7, roughness: 0.3 });
+        } else if (isWheel || nm.includes('black') || nm.includes('grey') || nm.includes('gray') || nm.includes('tire') || nm.includes('rim') || nm.includes('metal')) {
+          m.metalness = 0.45; m.roughness = 0.6; m.envMapIntensity = 0.9;
         } else {
-          o.material = new THREE.MeshPhysicalMaterial({
-            map: m.map || null,
-            color: m.color ? m.color.clone() : new THREE.Color(0xffffff),
-            metalness: 0.6, roughness: 0.32,
-            clearcoat: 1.0, clearcoatRoughness: 0.12,
-            envMapIntensity: 1.7,
-          });
+          o.material = new THREE.MeshPhysicalMaterial({ color: m.color ? m.color.clone() : new THREE.Color(0xffffff), metalness: 0.55, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.6 });
         }
       });
       group.add(model);
 
-      // Grab the separate wheel nodes so we can spin + steer them. A wheel whose
-      // chassis-frame Z is positive is a front (steered) wheel — computed from the
-      // world position so it's correct regardless of the model's facing rotation.
-      group.updateMatrixWorld(true);
+      // Collect wheel nodes for spin/steer — front ones (name contains "front") steer.
+      // Only the TOP wheel node of each subtree (skip child meshes that also carry
+      // "wheel" in their name, or they'd double-rotate).
       this._wheels = [];
-      const wp = new THREE.Vector3();
       model.traverse(o => {
-        if (o.name && o.name.toLowerCase().startsWith('wheel')) {
-          o.getWorldPosition(wp);
-          this._wheels.push({ node: o, steer: wp.z > 0.05 });
-          o.rotation.order = 'YXZ';
-        }
+        const n = (o.name || '').toLowerCase();
+        if (!n.includes('wheel')) return;
+        if (o.parent && (o.parent.name || '').toLowerCase().includes('wheel')) return;
+        o.rotation.order = 'YXZ';
+        this._wheels.push({ node: o, steer: n.includes('front') });
       });
       if (this._wheels[0]) {
         const ws = new THREE.Vector3();

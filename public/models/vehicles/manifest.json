@@ -1,10 +1,9 @@
 {
-  "sedan": "sedan.glb",
-  "sedan-sports": "sedan-sports.glb",
-  "suv": "suv.glb",
-  "van": "van.glb",
-  "truck": "truck.glb",
-  "taxi": "taxi.glb",
-  "police": "police.glb",
-  "hatchback-sports": "hatchback-sports.glb"
+  "normalcar1": "quat/normalcar1.glb",
+  "normalcar2": "quat/normalcar2.glb",
+  "sportscar": "quat/sportscar.glb",
+  "sportscar2": "quat/sportscar2.glb",
+  "suv2": "quat/suv2.glb",
+  "taxi2": "quat/taxi2.glb",
+  "cop": "quat/cop.glb"
 }
