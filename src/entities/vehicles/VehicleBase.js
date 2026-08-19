@@ -101,7 +101,29 @@ export class VehicleBase {
       const wheelBottom = -this.height / 2 - 1.0;
       model.position.y -= bb.min.y - wheelBottom;
       model.rotation.y = Math.PI;                   // Kenney cars face -Z; chassis front is +Z
-      model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      // Upgrade to reflective automotive paint. The scene's image-based environment
+      // then gives the body real reflections + a clearcoat sheen (much closer to a
+      // real car than the flat matte colormap); wheels stay dark rubber.
+      model.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        o.castShadow = true; o.receiveShadow = true;
+        let isWheel = false;
+        for (let par = o; par; par = par.parent) {
+          if (par.name && par.name.toLowerCase().startsWith('wheel')) { isWheel = true; break; }
+        }
+        const m = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (isWheel) {
+          m.metalness = 0.5; m.roughness = 0.55; m.envMapIntensity = 0.9;
+        } else {
+          o.material = new THREE.MeshPhysicalMaterial({
+            map: m.map || null,
+            color: m.color ? m.color.clone() : new THREE.Color(0xffffff),
+            metalness: 0.6, roughness: 0.32,
+            clearcoat: 1.0, clearcoatRoughness: 0.12,
+            envMapIntensity: 1.7,
+          });
+        }
+      });
       group.add(model);
 
       // Grab the separate wheel nodes so we can spin + steer them. A wheel whose
