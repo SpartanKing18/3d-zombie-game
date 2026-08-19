@@ -103,6 +103,25 @@ export class VehicleBase {
       model.rotation.y = Math.PI;                   // Kenney cars face -Z; chassis front is +Z
       model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       group.add(model);
+
+      // Grab the separate wheel nodes so we can spin + steer them. A wheel whose
+      // chassis-frame Z is positive is a front (steered) wheel — computed from the
+      // world position so it's correct regardless of the model's facing rotation.
+      group.updateMatrixWorld(true);
+      this._wheels = [];
+      const wp = new THREE.Vector3();
+      model.traverse(o => {
+        if (o.name && o.name.toLowerCase().startsWith('wheel')) {
+          o.getWorldPosition(wp);
+          this._wheels.push({ node: o, steer: wp.z > 0.05 });
+          o.rotation.order = 'YXZ';
+        }
+      });
+      if (this._wheels[0]) {
+        const ws = new THREE.Vector3();
+        new THREE.Box3().setFromObject(this._wheels[0].node).getSize(ws);
+        this._visWheelRadius = Math.max(0.15, ws.y / 2);
+      }
     } else {
       const body = new THREE.Mesh(new THREE.BoxGeometry(this.width, this.height, this.length),
         new THREE.MeshStandardMaterial({ color: 0x8a2a2a, roughness: 0.6, metalness: 0.3 }));
@@ -125,9 +144,22 @@ export class VehicleBase {
 
     this.updateVehicle(deltaTime);
     this.updateMeshPosition();
+    this.updateWheels(deltaTime);
 
     if (this.fuel > 0) {
       this.fuel = Math.max(0, this.fuel - 0.1 * deltaTime);
+    }
+  }
+
+  // Spin every wheel by the distance rolled and steer the front pair.
+  updateWheels(deltaTime) {
+    if (!this._wheels || !this._wheels.length) return;
+    const r = this._visWheelRadius || 0.4;
+    this._wheelSpin = (this._wheelSpin || 0) + (this.getSpeed() * deltaTime) / r;
+    const steerAngle = this.steering * this.turnSpeed;   // matches the physics steer
+    for (const w of this._wheels) {
+      w.node.rotation.y = w.steer ? steerAngle : 0;       // yaw (steer) — front only
+      w.node.rotation.x = this._wheelSpin;                // roll (spin) — all wheels
     }
   }
 
