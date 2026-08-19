@@ -188,34 +188,79 @@ export class NeighborhoodBuilder {
     return { N: 0, S: Math.PI, E: Math.PI / 2, W: -Math.PI / 2 }[face] ?? 0;
   }
 
-  _house(x, z, face, seed) {
-    // Prefer a cohesive Kenney City Kit model house; keep a solid collision box
-    // sized to the model. Falls back to the procedural house if not loaded.
-    const reg = this.game.buildingModelLoader;
-    if (reg?.ready) {
-      if (!this._bKeys) this._bKeys = 'abcdefghijklmnopqrstu'.split('').map(c => 'building-type-' + c);
-      const model = reg.createModel(this._bKeys[(Math.random() * this._bKeys.length) | 0]);
-      if (model) {
-        model.updateMatrixWorld(true);
-        const sz = new THREE.Vector3();
-        new THREE.Box3().setFromObject(model).getSize(sz); // unrotated footprint
+  // Wall colliders for an enterable house (model-local, Y-up, door faces -Z, floor
+  // at y=0). Front wall is split around the door gap and topped by a lintel, so the
+  // doorway (|x|<DW/2, below DH) is left open to walk through. Everything is rotated
+  // by the house yaw and offset to the lot. MUST match build_houses.py dimensions.
+  _addHouseColliders(x, z, yaw) {
+    const OW = 8, OD = 7, H = 3, T = 0.22, DW = 1.6, DH = 2.25, LIFT = 0.12;
+    // Interior floor collider so the player stands ON the wooden floor (which sits a
+    // little above the grass so it doesn't z-fight the terrain), not on the terrain.
+    const floor = new CANNON.Body({ mass: 0 });
+    floor.addShape(new CANNON.Box(new CANNON.Vec3(OW / 2, LIFT / 2 + 0.03, OD / 2)));
+    floor.position.set(x, LIFT / 2, z);
+    floor.collisionFilterGroup = 8; floor.collisionFilterMask = 1;
+    this.game.physicsWorld.addBody(floor); this._bodies.push(floor);
+    const fx = (OW / 2 - DW / 2) / 2;    // front-segment half width
+    const fcx = (OW / 2 + DW / 2) / 2;   // front-segment centre |x|
+    const walls = [
+      [0, H / 2, OD / 2 - T / 2, OW / 2, H / 2, T / 2],              // back (+Z)
+      [-OW / 2 + T / 2, H / 2, 0, T / 2, H / 2, OD / 2],             // left (-X)
+      [OW / 2 - T / 2, H / 2, 0, T / 2, H / 2, OD / 2],              // right (+X)
+      [-fcx, H / 2, -OD / 2 + T / 2, fx, H / 2, T / 2],              // front-left
+      [fcx, H / 2, -OD / 2 + T / 2, fx, H / 2, T / 2],               // front-right
+      [0, (DH + H) / 2, -OD / 2 + T / 2, DW / 2, (H - DH) / 2, T / 2], // lintel over door
+    ];
+    const c = Math.cos(yaw), s = Math.sin(yaw);
+    const q = new CANNON.Quaternion().setFromEuler(0, yaw, 0);
+    for (const [cx, cy, cz, hx, hy, hz] of walls) {
+      const wx = x + cx * c + cz * s;    // three.js Ry(yaw) on the local (x,z)
+      const wz = z - cx * s + cz * c;
+      const body = new CANNON.Body({ mass: 0 });
+      body.addShape(new CANNON.Box(new CANNON.Vec3(hx, hy, hz)));
+      body.position.set(wx, cy + LIFT, wz);
+      body.quaternion.copy(q);
+      body.collisionFilterGroup = 8;
+      body.collisionFilterMask = 1;
+      this.game.physicsWorld.addBody(body);
+      this._bodies.push(body);
+    }
+  }
 
-        const rot = this._faceRot(face);
+  _house(x, z, face, seed) {
+    // Enterable Blender house: a hollow shell you can walk into, with per-wall
+    // collision leaving the doorway open. Falls back to the procedural house below.
+    const reg = this.game.enterableHouseLoader;
+    if (reg?.ready) {
+      if (!this._hKeys) this._hKeys = ['house-a', 'house-b', 'house-c', 'house-d'];
+      const model = reg.createModel(this._hKeys[(Math.random() * this._hKeys.length) | 0]);
+      if (model) {
+        // Model door faces -Z; +PI rotates it to point the cardinal `face` direction.
+        const yaw = this._faceRot(face) + Math.PI;
         const g = new THREE.Group();
         g.add(model);
-        g.position.set(x, 0, z);
-        g.rotation.y = rot;
+        g.position.set(x, 0.12, z);   // lift so the wood floor sits above the grass
+        g.rotation.y = yaw;
+        g.traverse(o => {
+          if (!o.isMesh) return;
+          o.castShadow = true; o.receiveShadow = true;
+          // Render both sides so the floor/walls are solid when viewed from inside.
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          for (const m of mats) {
+            if (!m) continue;
+            m.side = THREE.DoubleSide;
+            // Enclosed interiors are lit mostly by the image-based environment, which
+            // blows them out to white; damp the IBL so rooms read at a normal level.
+            m.envMapIntensity = 0.35;
+            // The interior wood floor sits just above the grass; the scene's far plane
+            // makes that thin gap z-fight, so bias the floor toward the camera so it
+            // always wins over the terrain underneath.
+            if (o.name === 'floor') { m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -4; }
+          }
+        });
         this.game.scene.addObject(g);
         this._objects.push(g);
-
-        const body = new CANNON.Body({ mass: 0 });
-        body.addShape(new CANNON.Box(new CANNON.Vec3(sz.x / 2, sz.y / 2, sz.z / 2)));
-        body.position.set(x, sz.y / 2, z);
-        body.quaternion.copy(new CANNON.Quaternion().setFromEuler(0, rot, 0));
-        body.collisionFilterGroup = 8;
-        body.collisionFilterMask = 1;
-        this.game.physicsWorld.addBody(body);
-        this._bodies.push(body);
+        this._addHouseColliders(x, z, yaw);
         return;
       }
     }

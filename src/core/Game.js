@@ -135,6 +135,14 @@ export class Game {
       dir: '/models/buildings/',
       fit: null, scale: 7, ground: true,
     });
+    // Enterable houses authored in Blender (hollow shells with a real door opening).
+    // scale:1 keeps their true metre size; ground:false keeps the floor at y=0.
+    this.enterableHouseLoader = new ModelRegistry({
+      label: 'EnterableHouses',
+      manifestUrl: '/models/buildings/enterable/manifest.json',
+      dir: '/models/buildings/enterable/',
+      fit: null, scale: 1, ground: false,
+    });
 
     this.player = new Player(this);
     this.zombieManager = new ZombieManager(this);
