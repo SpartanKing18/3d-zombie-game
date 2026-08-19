@@ -143,6 +143,14 @@ export class Game {
       dir: '/models/buildings/enterable/',
       fit: null, scale: 1, ground: false,
     });
+    // Drivable car models (Kenney Car Kit, CC0). VehicleBase scales each to its
+    // chassis, so keep them at native size here.
+    this.vehicleModelLoader = new ModelRegistry({
+      label: 'Vehicles',
+      manifestUrl: '/models/vehicles/manifest.json',
+      dir: '/models/vehicles/',
+      fit: null, scale: 1, ground: false,
+    });
 
     this.player = new Player(this);
     this.zombieManager = new ZombieManager(this);
@@ -560,11 +568,18 @@ export class Game {
       } catch (e) { /* silent */ }
     }
 
-    try {
-      if (this.weaponManager) { this.weaponManager.update(dt); this.handleWeaponInput(); }
-      this._updateADS(dt);
-      this.weaponViewModel?.update(dt, this.player, this.weaponManager?.getCurrentWeapon?.());
-    } catch (e) { console.error('[WeaponManager]', e); }
+    // Vehicles: physics tick for all cars, plus driving controls/camera + enter/exit.
+    try { this.vehicleManager?.update(dt); } catch (e) { console.error('[Vehicles]', e); }
+    try { this._updateDriving(dt); } catch (e) { console.error('[Driving]', e); }
+
+    // Weapons are holstered while driving.
+    if (!this.drivingVehicle) {
+      try {
+        if (this.weaponManager) { this.weaponManager.update(dt); this.handleWeaponInput(); }
+        this._updateADS(dt);
+        this.weaponViewModel?.update(dt, this.player, this.weaponManager?.getCurrentWeapon?.());
+      } catch (e) { console.error('[WeaponManager]', e); }
+    }
 
     try {
       if (!this.inFriendHouse && this.zombieManager) this.zombieManager.update(dt);
@@ -1951,6 +1966,145 @@ export class Game {
     if (!fpsDisplay || fpsDisplay.style.display === 'none') return;
     const counter = document.getElementById('fps-counter');
     if (counter) counter.textContent = this.fps;
+  }
+
+  // ─── Driving ───────────────────────────────────────────────────────────────
+  _spawnDrivableCars() {
+    if (this._carsSpawned) return;
+    if (!this.vehicleModelLoader?.ready) {   // wait for the car models
+      setTimeout(() => this._spawnDrivableCars(), 700);
+      return;
+    }
+    this._carsSpawned = true;
+    // Clear spots on the open E-W roads, each facing ALONG its road (E:+X / W:-X) so
+    // the driver has a long straight to drive instead of a curb across the street.
+    const spots = [[8, 20, 'E'], [-6, 20, 'W'], [24, 20, 'E'], [-16, 48, 'E'], [10, 48, 'W']];
+    for (const [x, z, dir] of spots) {
+      try {
+        const v = this.vehicleManager.spawn('sedan', x, z);
+        if (v) {
+          v.acceleration = 1800; v.braking = 45; v.turnSpeed = 0.55; v.maxSpeed = 24;
+          v.body.quaternion.setFromEuler(0, dir === 'E' ? Math.PI / 2 : -Math.PI / 2, 0);
+        }
+      } catch (e) { /* silent */ }
+    }
+  }
+
+  _updateDriving(dt) {
+    const im = this.inputManager;
+    const fNow = im.isKeyPressed('f');
+    const fPressed = fNow && !this._fDriveWasDown;
+    this._fDriveWasDown = fNow;
+
+    if (this.drivingVehicle) {
+      const v = this.drivingVehicle;
+      if (!v.isAlive?.() || !v.body) { this._exitVehicle(); return; }
+
+      const w = im.isKeyPressed('w'), s = im.isKeyPressed('s');
+      const a = im.isKeyPressed('a'), d = im.isKeyPressed('d');
+      // Throttle / brake with a max-speed cutoff so it doesn't run away.
+      const spd = v.getSpeed();
+      v.engine = w && spd < v.maxSpeed ? 1 : (s ? -1 : 0);
+      // Smooth steering toward the held direction (max ~0.55 rad via turnSpeed).
+      const steerTarget = (a ? -1 : 0) + (d ? 1 : 0);
+      v.steering += (steerTarget - v.steering) * Math.min(1, dt * 9);
+      if (steerTarget === 0) v.steering *= 0.8;
+
+      // Keep the player pinned to the car so exiting drops them at the right spot.
+      if (this.player?.body) { this.player.body.position.copy(v.body.position); this.player.body.velocity.set(0, 0, 0); }
+
+      this._driveCamera(v, dt);
+      this._updateDriveHUD(v);
+      if (fPressed) this._exitVehicle();
+      return;
+    }
+
+    // On foot: offer to drive a nearby car.
+    const pos = this.player?.getPosition?.();
+    if (!pos || this.inFriendHouse) { this._setDrivePrompt(null); return; }
+    let near = null, best = 3.4 * 3.4;
+    for (const v of (this.vehicleManager?.getVehicles?.() ?? [])) {
+      if (!v.isAlive?.() || !v.body) continue;
+      const dx = v.body.position.x - pos.x, dz = v.body.position.z - pos.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < best) { best = d2; near = v; }
+    }
+    this._setDrivePrompt(near ? `[F] Drive ${near.getName?.() || 'Car'}` : null);
+    if (near && fPressed) this._enterVehicle(near);
+  }
+
+  _setDrivePrompt(text) {
+    if (!this._drivePromptEl) {
+      let el = document.getElementById('drive-prompt');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'drive-prompt';
+        el.style.cssText = 'position:fixed;left:50%;top:62%;transform:translateX(-50%);padding:6px 14px;background:rgba(0,0,0,0.6);border:1px solid rgba(0,255,136,0.5);border-radius:6px;color:#c8ffe0;font:600 15px monospace;letter-spacing:1px;pointer-events:none;z-index:120;display:none;';
+        document.body.appendChild(el);
+      }
+      this._drivePromptEl = el;
+    }
+    if (text) { this._drivePromptEl.textContent = text; this._drivePromptEl.style.display = 'block'; }
+    else this._drivePromptEl.style.display = 'none';
+  }
+
+  _enterVehicle(v) {
+    this.vehicleManager.enterVehicle(v, this.player);
+    this.drivingVehicle = v;
+    this._setDrivePrompt(null);
+    this.weaponViewModel?.setWeapon?.(null);           // holster
+    if (this.player?.body) this.player.body.position.copy(v.body.position);
+    this._camPos = null;
+  }
+
+  _exitVehicle() {
+    const v = this.drivingVehicle;
+    this.vehicleManager.exitVehicle();
+    this.drivingVehicle = null;
+    if (v?.body && this.player?.body) {
+      const f = v.getForwardDir();
+      const px = v.body.position.x - f.z * 2.4;         // step out to the driver's side
+      const pz = v.body.position.z + f.x * 2.4;
+      const gy = this.terrainGenerator?.getHeightAt?.(px, pz);
+      this.player.body.position.set(px, (isFinite(gy) ? gy : 0) + 1.2, pz);
+      this.player.body.velocity.set(0, 0, 0);
+    }
+    // Restore the held weapon viewmodel.
+    try { this.weaponViewModel?.setWeapon?.(this.weaponManager?.getCurrentWeapon?.()); } catch (e) { /* silent */ }
+    const hud = document.getElementById('drive-hud'); if (hud) hud.style.display = 'none';
+  }
+
+  _driveCamera(v, dt) {
+    const cam = this.scene.getCamera();
+    const f = v.getForwardDir();
+    const cp = v.body.position;
+    const dist = 6.5, height = 3.0;
+    const tx = cp.x - f.x * dist, tz = cp.z - f.z * dist, ty = cp.y + height;
+    if (!this._camPos) this._camPos = new THREE.Vector3(tx, ty, tz);
+    const k = Math.min(1, dt * 6);
+    this._camPos.x += (tx - this._camPos.x) * k;
+    this._camPos.y += (ty - this._camPos.y) * k;
+    this._camPos.z += (tz - this._camPos.z) * k;
+    cam.position.copy(this._camPos);
+    cam.lookAt(cp.x, cp.y + 0.7, cp.z);
+  }
+
+  _updateDriveHUD(v) {
+    if (!this._driveHudEl) {
+      let el = document.getElementById('drive-hud');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'drive-hud';
+        el.style.cssText = 'position:fixed;right:28px;bottom:110px;text-align:right;color:#cfe8ff;font:700 13px monospace;letter-spacing:1px;text-shadow:0 0 6px rgba(0,0,0,0.8);pointer-events:none;z-index:110;';
+        document.body.appendChild(el);
+      }
+      this._driveHudEl = el;
+    }
+    const kmh = Math.abs(Math.round(v.getSpeed() * 3.6));
+    this._driveHudEl.style.display = 'block';
+    this._driveHudEl.innerHTML = `<div style="font-size:22px;color:#8ff0c0">${kmh}<span style="font-size:11px"> km/h</span></div>`
+      + `<div style="color:#ffcc66">⛽ ${Math.round(v.fuel)}%</div>`
+      + `<div style="color:#888;font-size:10px">[W/S] drive  [A/D] steer  [F] exit</div>`;
   }
 
   pause() {

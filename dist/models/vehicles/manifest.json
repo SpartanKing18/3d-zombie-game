@@ -1,0 +1,10 @@
+{
+  "sedan": "sedan.glb",
+  "sedan-sports": "sedan-sports.glb",
+  "suv": "suv.glb",
+  "van": "van.glb",
+  "truck": "truck.glb",
+  "taxi": "taxi.glb",
+  "police": "police.glb",
+  "hatchback-sports": "hatchback-sports.glb"
+}

@@ -213,10 +213,16 @@ export class Player {
       this.spawnProtectionTime -= deltaTime;
     }
 
-    if (this.noclip) {
-      this.updateNoclip(deltaTime);
-    } else {
-      this.updatePhysics(deltaTime);
+    // While driving, the car's chase camera and physics take over — skip the
+    // player's own movement and camera (WASD steers the car instead).
+    const driving = !!this.game.drivingVehicle;
+
+    if (!driving) {
+      if (this.noclip) {
+        this.updateNoclip(deltaTime);
+      } else {
+        this.updatePhysics(deltaTime);
+      }
     }
 
     // Distance tracking — run after position is updated from physics
@@ -229,7 +235,7 @@ export class Player {
     this._lastStatsPos = this.position.clone();
 
     this.updateStamina(deltaTime);
-    this.updateCamera();
+    if (!driving) this.updateCamera();
     this.updateHUD();
 
     // Damage vignette countdown — ease-out (squared) so it snaps in and falls off

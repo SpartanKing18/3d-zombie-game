@@ -37,70 +37,80 @@ export class VehicleBase {
   }
 
   setupPhysics() {
-    const shape = new CANNON.Box(
-      new CANNON.Vec3(this.width / 2, this.height / 2, this.length / 2)
-    );
-
-    this.body = new CANNON.Body({
-      mass: this.mass
-    });
-
+    const shape = new CANNON.Box(new CANNON.Vec3(this.width / 2, this.height / 2, this.length / 2));
+    this.body = new CANNON.Body({ mass: this.mass });
     this.body.addShape(shape);
+    this.body.angularDamping = 0.5;   // resist tipping/spin
     this.body.position.copy(this.position);
     this.game.physicsWorld.addBody(this.body);
 
+    // cannon-es RaycastVehicle needs addWheel() calls — constructor wheelInfos are
+    // ignored. Forward is +Z (index 2), right +X (0), up +Y (1).
     this.vehicle = new CANNON.RaycastVehicle({
-      chassisBody: this.body,
-      wheelInfos: [
-        { radius: 0.5, directionLocal: new CANNON.Vec3(0, -1, 0), axleLocal: new CANNON.Vec3(-1, 0, 0), chassisConnectionPointLocal: new CANNON.Vec3(-this.width / 3, -this.height / 2 - 0.5, this.length / 3) },
-        { radius: 0.5, directionLocal: new CANNON.Vec3(0, -1, 0), axleLocal: new CANNON.Vec3(-1, 0, 0), chassisConnectionPointLocal: new CANNON.Vec3(this.width / 3, -this.height / 2 - 0.5, this.length / 3) },
-        { radius: 0.5, directionLocal: new CANNON.Vec3(0, -1, 0), axleLocal: new CANNON.Vec3(-1, 0, 0), chassisConnectionPointLocal: new CANNON.Vec3(-this.width / 3, -this.height / 2 - 0.5, -this.length / 3) },
-        { radius: 0.5, directionLocal: new CANNON.Vec3(0, -1, 0), axleLocal: new CANNON.Vec3(-1, 0, 0), chassisConnectionPointLocal: new CANNON.Vec3(this.width / 3, -this.height / 2 - 0.5, -this.length / 3) }
-      ]
+      chassisBody: this.body, indexRightAxis: 0, indexUpAxis: 1, indexForwardAxis: 2,
     });
-
-    this.vehicle.addToWorld(this.game.physicsWorld.getWorld());
-
-    for (let i = 0; i < this.vehicle.wheelInfos.length; i++) {
-      const wheel = this.vehicle.wheelBodies[i];
-      this.wheels.push(wheel);
+    const wheelBase = {
+      radius: this.wheelRadius || 0.5,
+      directionLocal: new CANNON.Vec3(0, -1, 0),
+      suspensionStiffness: 34,
+      suspensionRestLength: 0.35,
+      frictionSlip: 2.2,
+      dampingRelaxation: 2.4,
+      dampingCompression: 4.4,
+      maxSuspensionForce: 1e5,
+      rollInfluence: 0.03,
+      axleLocal: new CANNON.Vec3(1, 0, 0),
+      maxSuspensionTravel: 0.4,
+      customSlidingRotationalSpeed: -30,
+      useCustomSlidingRotationalSpeed: true,
+    };
+    const hw = this.width / 2 - 0.05;
+    const cz = this.length / 2 - 0.65;
+    const cy = -this.height / 2 + 0.15;
+    const pts = [[-hw, cy, cz], [hw, cy, cz], [-hw, cy, -cz], [hw, cy, -cz]]; // front(0,1) rear(2,3)
+    for (const [x, y, z] of pts) {
+      this.vehicle.addWheel({ ...wheelBase, chassisConnectionPointLocal: new CANNON.Vec3(x, y, z) });
     }
+    this.vehicle.addToWorld(this.game.physicsWorld.getWorld());
   }
 
   createMesh() {
     const group = new THREE.Group();
 
-    const bodyGeometry = new THREE.BoxGeometry(this.width, this.height, this.length);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000, roughness: 0.9, metalness: 0 });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.castShadow = true;
-    body.receiveShadow = true;
-    group.add(body);
+    // Real car model (Kenney Car Kit), scaled to this chassis. Falls back to a simple
+    // box if the model loader isn't ready yet (rare — vehicles spawn well after load).
+    const reg = this.game.vehicleModelLoader;
+    let model = null;
+    if (reg?.ready) {
+      const keys = ['sedan', 'sedan-sports', 'suv', 'van', 'truck', 'taxi', 'police', 'hatchback-sports'];
+      const key = this.modelKey || keys[(Math.random() * keys.length) | 0];
+      model = reg.createModel(key);
+    }
 
-    const cabinGeometry = new THREE.BoxGeometry(this.width * 0.8, this.height * 0.5, this.length * 0.4);
-    const cabinMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9, metalness: 0 });
-    const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
-    cabin.position.y = this.height * 0.5;
-    cabin.castShadow = true;
-    group.add(cabin);
-
-    const wheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
-    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9, metalness: 0 });
-
-    const wheelPositions = [
-      [-this.width / 2 - 0.2, -this.height / 2, this.length / 3],
-      [this.width / 2 + 0.2, -this.height / 2, this.length / 3],
-      [-this.width / 2 - 0.2, -this.height / 2, -this.length / 3],
-      [this.width / 2 + 0.2, -this.height / 2, -this.length / 3]
-    ];
-
-    wheelPositions.forEach(pos => {
-      const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-      wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(pos[0], pos[1], pos[2]);
-      wheel.castShadow = true;
-      group.add(wheel);
-    });
+    if (model) {
+      model.updateMatrixWorld(true);
+      let bb = new THREE.Box3().setFromObject(model);
+      const sz = new THREE.Vector3(); bb.getSize(sz);
+      const s = this.length / (sz.z || 1);          // scale so the model's length = chassis length
+      model.scale.setScalar(s);
+      model.updateMatrixWorld(true);
+      bb = new THREE.Box3().setFromObject(model);
+      const c = new THREE.Vector3(); bb.getCenter(c);
+      model.position.x -= c.x; model.position.z -= c.z;   // centre on the chassis in XZ
+      // Drop the model so its wheels sit at the chassis wheel-contact line.
+      const wheelBottom = -this.height / 2 - 1.0;
+      model.position.y -= bb.min.y - wheelBottom;
+      model.rotation.y = Math.PI;                   // Kenney cars face -Z; chassis front is +Z
+      model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      group.add(model);
+    } else {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(this.width, this.height, this.length),
+        new THREE.MeshStandardMaterial({ color: 0x8a2a2a, roughness: 0.6, metalness: 0.3 }));
+      body.castShadow = true; body.receiveShadow = true; group.add(body);
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(this.width * 0.8, this.height * 0.5, this.length * 0.4),
+        new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4, metalness: 0.4 }));
+      cabin.position.y = this.height * 0.5; cabin.castShadow = true; group.add(cabin);
+    }
 
     group.position.copy(this.position);
     this.game.scene.addObject(group);
@@ -122,27 +132,29 @@ export class VehicleBase {
   }
 
   updateVehicle(deltaTime) {
+    // The cannon RaycastVehicle applies these on the world's preStep (registered by
+    // addToWorld), so we only SET the per-wheel forces via its API here — never call
+    // vehicle.update() (it doesn't exist and the wheels auto-update on world.step).
+    if (!this.vehicle) return;
+    const n = this.vehicle.wheelInfos.length;
+    const steer = this.steering * this.turnSpeed;
+
     if (this.isDriving && this.fuel > 0) {
-      const maxEngineForce = this.acceleration;
-      const maxBrakingForce = this.braking;
-
-      for (let i = 0; i < this.vehicle.wheelInfos.length; i++) {
-        const info = this.vehicle.wheelInfos[i];
-        info.engineForce = this.engine * maxEngineForce;
-
-        if (this.engine === 0) {
-          info.brakingForce = maxBrakingForce;
-        } else {
-          info.brakingForce = 0;
-        }
-
-        if (i < 2) {
-          info.steering = this.steering * this.turnSpeed;
-        }
+      // Negated so +engine drives toward the chassis' +Z (getForwardDir) — cannon
+      // applies applyEngineForce along its own forward, which is -Z here.
+      const force = -this.engine * this.acceleration;
+      for (let i = 0; i < n; i++) {
+        this.vehicle.applyEngineForce(force, i);
+        this.vehicle.setBrake(this.engine === 0 ? this.braking : 0, i);
       }
+    } else {
+      // Parked / no fuel: gentle brake so it doesn't creep, no drive.
+      for (let i = 0; i < n; i++) { this.vehicle.applyEngineForce(0, i); this.vehicle.setBrake(this.braking * 0.5, i); }
     }
+    // Steer the front axle (wheels 0,1).
+    this.vehicle.setSteeringValue(steer, 0);
+    this.vehicle.setSteeringValue(steer, 1);
 
-    this.vehicle.update(deltaTime);
     this.position.copy(this.body.position);
   }
 
@@ -219,6 +231,22 @@ export class VehicleBase {
       this.game.physicsWorld.removeBody(this.body);
       this.body = null;
     }
+  }
+
+  // Chassis forward (+Z local) in world space, flattened to the ground plane.
+  getForwardDir() {
+    const f = new THREE.Vector3(0, 0, 1);
+    if (this.body) f.applyQuaternion(this.body.quaternion);
+    f.y = 0; if (f.lengthSq() < 1e-6) f.set(0, 0, 1);
+    return f.normalize();
+  }
+
+  // Forward ground speed in m/s (signed: negative when reversing).
+  getSpeed() {
+    if (!this.body) return 0;
+    const v = this.body.velocity;
+    const f = this.getForwardDir();
+    return v.x * f.x + v.z * f.z;
   }
 
   getPosition() {
