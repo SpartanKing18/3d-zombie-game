@@ -135,17 +135,32 @@ export class VehicleBase {
       });
       group.add(model);
 
-      // Collect wheel nodes for spin/steer — front ones (name contains "front") steer.
-      // Only the TOP wheel node of each subtree (skip child meshes that also carry
-      // "wheel" in their name, or they'd double-rotate).
+      // Collect wheel nodes for spin/steer. These models put every wheel node's origin
+      // at the car centre (0,0,0), so rotating the node would swing the wheel around the
+      // whole car. Re-pivot each wheel: drop a pivot Group at the wheel's geometric
+      // centre and reparent the wheel into it, so rotation happens about the wheel axle.
+      group.updateMatrixWorld(true);
       this._wheels = [];
+      const wheelNodes = [];
       model.traverse(o => {
         const n = (o.name || '').toLowerCase();
         if (!n.includes('wheel')) return;
         if (o.parent && (o.parent.name || '').toLowerCase().includes('wheel')) return;
-        o.rotation.order = 'YXZ';
-        this._wheels.push({ node: o, steer: n.includes('front') });
+        wheelNodes.push({ node: o, steer: n.includes('front') });
       });
+      const _c = new THREE.Vector3();
+      for (const w of wheelNodes) {
+        const node = w.node, parent = node.parent;
+        new THREE.Box3().setFromObject(node).getCenter(_c);
+        const centerLocal = parent.worldToLocal(_c.clone());
+        const pivot = new THREE.Group();
+        pivot.position.copy(centerLocal);
+        pivot.rotation.order = 'YXZ';
+        parent.add(pivot);
+        node.position.sub(centerLocal);   // keep the wheel geometry where it was
+        pivot.add(node);
+        this._wheels.push({ node: pivot, steer: w.steer });
+      }
       if (this._wheels[0]) {
         const ws = new THREE.Vector3();
         new THREE.Box3().setFromObject(this._wheels[0].node).getSize(ws);
