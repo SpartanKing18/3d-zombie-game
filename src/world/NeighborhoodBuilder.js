@@ -379,8 +379,8 @@ export class NeighborhoodBuilder {
       }
     }
     // Parked cars along the curbs
-    const carSpots = [[-24, 16.5, 0], [12, 16.5, 0], [-38, 44, Math.PI], [24, 51.5, 0], [-30, 44, Math.PI], [40, 24, Math.PI / 2]];
-    for (const [cx, cz, rot] of carSpots) if (!this._onRoad(cx, cz, 0)) this._car(cx, cz, rot, M);
+    // Parked cars are now real DRIVABLE vehicles (Game._spawnDrivableCars), not
+    // static props — so every parked car you walk up to can actually be driven.
     // Hydrants, trash cans, mailboxes, hedges at intervals
     for (let x = -40; x <= 40; x += 13) {
       this._mailbox(x + 3, 16.2, M);

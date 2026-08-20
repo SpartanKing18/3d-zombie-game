@@ -1976,15 +1976,20 @@ export class Game {
       return;
     }
     this._carsSpawned = true;
-    // Clear spots on the open E-W roads, each facing ALONG its road (E:+X / W:-X) so
-    // the driver has a long straight to drive instead of a curb across the street.
-    const spots = [[8, 20, 'E'], [-6, 20, 'W'], [24, 20, 'E'], [-16, 48, 'E'], [10, 48, 'W']];
+    // Drivable cars spread across the streets, each facing along its road so there's
+    // a clear straight to drive. These REPLACE the old static parked cars.
+    const yaw = { E: Math.PI / 2, W: -Math.PI / 2, N: 0, S: Math.PI };
+    const spots = [
+      [8, 20, 'E'], [-6, 20, 'W'], [24, 20, 'E'], [-20, 20, 'W'],       // Main St
+      [-16, 48, 'E'], [10, 48, 'W'], [26, 48, 'E'],                     // Second St
+      [-24, 16.5, 'E'], [12, 16.5, 'W'], [-30, 43.5, 'E'], [24, 51.5, 'W'], // curbside/driveways
+    ];
     for (const [x, z, dir] of spots) {
       try {
         const v = this.vehicleManager.spawn('sedan', x, z);
         if (v) {
           v.acceleration = 1800; v.braking = 45; v.turnSpeed = 0.55; v.maxSpeed = 24;
-          v.body.quaternion.setFromEuler(0, dir === 'E' ? Math.PI / 2 : -Math.PI / 2, 0);
+          v.body.quaternion.setFromEuler(0, yaw[dir] ?? 0, 0);
         }
       } catch (e) { /* silent */ }
     }
@@ -2022,7 +2027,7 @@ export class Game {
     // On foot: offer to drive a nearby car.
     const pos = this.player?.getPosition?.();
     if (!pos || this.inFriendHouse) { this._setDrivePrompt(null); return; }
-    let near = null, best = 3.4 * 3.4;
+    let near = null, best = 4.5 * 4.5;
     for (const v of (this.vehicleManager?.getVehicles?.() ?? [])) {
       if (!v.isAlive?.() || !v.body) continue;
       const dx = v.body.position.x - pos.x, dz = v.body.position.z - pos.z;
