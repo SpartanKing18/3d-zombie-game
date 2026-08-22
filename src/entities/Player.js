@@ -175,7 +175,10 @@ export class Player {
     this.game.scene.scene.add(this._flashlightTarget);
     fl.target = this._flashlightTarget;
     this._flashlight = fl;
-    this.flashlightOn = false;
+    // Default ON: at night the world would otherwise read as a black screen to a
+    // player who hasn't discovered the [L] toggle. The beam is near-invisible in
+    // daylight and essential after dusk, so on-by-default is the safe choice.
+    this.flashlightOn = true;
 
     document.addEventListener('keydown', (e) => {
       if (e.key.toLowerCase() === 'l' && !this.game.commandSystem?.isOpen && !this.game.inventorySystem?.isOpen) {

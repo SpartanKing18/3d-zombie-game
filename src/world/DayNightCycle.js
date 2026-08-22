@@ -16,13 +16,18 @@ export class DayNightCycle {
     this._colTmp   = new THREE.Color();
 
     // Moon light for nights
-    this._moonLight = new THREE.DirectionalLight(0x6a7fb0, 0);
+    this._moonLight = new THREE.DirectionalLight(0x8ea0cc, 0);
     this._moonLight.position.set(-50, 80, -60);
     this.scene.add(this._moonLight);
 
     // Always-on ambient floor so the scene is never pitch black at night, even if
     // the image-based environment is weak/unavailable. Boosted at night below.
-    this._ambient = new THREE.AmbientLight(0x5a6478, 0.25);
+    // Colour is near-white with only a faint cool tint. A saturated blue ambient
+    // reflects almost nothing off the warm-toned street/terrain (warm albedo absorbs
+    // blue), leaving the ground black at night no matter how high the intensity — a
+    // near-white floor actually lights those surfaces. Keep the mood via fog/sky, not
+    // by tinting the fill light blue.
+    this._ambient = new THREE.AmbientLight(0xccd2e2, 0.3);
     this.scene.add(this._ambient);
   }
 
@@ -69,8 +74,12 @@ export class DayNightCycle {
       const tgt = this.directionalLight.target;
       if (tgt) { tgt.position.set(px, 0, pz); tgt.updateMatrixWorld(); }
 
-      // Sun intensity: smooth, no abrupt jump at horizon
-      const sunIntensity = Math.max(0, Math.pow(sunElevation, 0.6)) * 2.0 + 0.04;
+      // Sun intensity: smooth, no abrupt jump at horizon. Below the horizon the sun
+      // is fully OFF — it sits underground (y≈-270) with a near-black colour, and
+      // leaving even a 0.04 floor on it drags lit surfaces toward black (a dark
+      // directional light still writes into the lighting sum and crushes the ambient
+      // floor). The moon + ambient carry the night instead.
+      const sunIntensity = sunElevation > 0 ? Math.pow(sunElevation, 0.6) * 2.0 + 0.04 : 0;
       this.directionalLight.intensity = sunIntensity;
       // Below the horizon the sun's shadow camera sits underground and would cast the
       // whole world into shadow — turn shadow casting off at night.
@@ -102,10 +111,13 @@ export class DayNightCycle {
     // screen never reads as "black".
     if (this.scene) this.scene.environmentIntensity = (0.5 + dayF * 0.5) * (indoor ? 0.4 : 1);
     if (this.sceneManager?.fillLight) this.sceneManager.fillLight.intensity = (0.16 + dayF * 0.30) * (indoor ? 0.5 : 1);
-    if (this.sceneManager?.hemiLight) this.sceneManager.hemiLight.intensity = 0.5 + dayF * 0.3;
+    if (this.sceneManager?.hemiLight) this.sceneManager.hemiLight.intensity = 0.6 + dayF * 0.3;
     // Ambient floor: strong at night (moonlit) so nothing goes fully black; low by day
     // (the sun carries daytime), and never touches the friend's-house interior mood.
-    if (this._ambient) this._ambient.intensity = indoor ? 0.15 : (0.7 - dayF * 0.5);
+    // Night floor is deliberately high — ACES tone-mapping crushes low bluish ambient
+    // toward black, so the moonlit floor needs real headroom (2.4) to read as a dim
+    // street rather than a pure-black screen. The flashlight adds a bright cone on top.
+    if (this._ambient) this._ambient.intensity = indoor ? 0.15 : (1.1 - dayF * 0.75);
     // Exposure: runs before WeatherSystem's lightning spike each frame, so storm
     // flashes still win. Lift it a touch at night to keep shadows out of pure black.
     if (this.game.renderer) this.game.renderer.toneMappingExposure = indoor ? 0.62 : (0.85 + (1 - dayF) * 0.2);
@@ -115,7 +127,7 @@ export class DayNightCycle {
       this._moonLight.position.x = px - Math.cos(sunAngle) * 300;
       this._moonLight.position.y = Math.max(30, -sunElevation * 280 + 30);
       this._moonLight.position.z = pz - Math.sin(sunAngle * 0.7) * 150;
-      this._moonLight.intensity = Math.max(0, -sunElevation) * 0.85 + 0.1;
+      this._moonLight.intensity = Math.max(0, -sunElevation) * 1.4 + 0.2;
     }
 
     // Fog: heavy, dread-inducing haze — moderate by day, thick and near-black at
