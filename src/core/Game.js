@@ -543,6 +543,24 @@ export class Game {
       } catch (e) { console.error('[gameLoop]', e); }
     }
 
+    // Catch-all against a black screen: if anything (a vehicle physics blow-up, a
+    // stray NaN) makes the camera non-finite, its view matrix is NaN and the whole
+    // frame renders black forever. Snap it back to the last good transform instead.
+    const cam = this.camera;
+    if (cam) {
+      const pos = cam.position, q = cam.quaternion;
+      const finite = Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z)
+        && Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(q.z) && Number.isFinite(q.w);
+      if (!finite) {
+        const g = this._lastGoodCam;
+        if (g) { pos.set(g.px, g.py, g.pz); q.set(g.qx, g.qy, g.qz, g.qw); }
+        else { pos.set(0, 3, 0); q.identity(); }
+        if (this.drivingVehicle) { try { this._exitVehicle(); } catch (e) { this.drivingVehicle = null; } }
+      } else {
+        this._lastGoodCam = { px: pos.x, py: pos.y, pz: pos.z, qx: q.x, qy: q.y, qz: q.z, qw: q.w };
+      }
+    }
+
     if (this.inCutscene && this.cutsceneScene && this.cutsceneCamera) {
       this.renderer.render(this.cutsceneScene, this.cutsceneCamera);
     } else {
@@ -2004,6 +2022,16 @@ export class Game {
     if (this.drivingVehicle) {
       const v = this.drivingVehicle;
       if (!v.isAlive?.() || !v.body) { this._exitVehicle(); return; }
+      // Vehicle physics blew up (RaycastVehicle can go NaN) — bail out safely to a
+      // clear spot rather than steering the camera to NaN (black screen).
+      if (!Number.isFinite(v.body.position.x) || !Number.isFinite(v.body.position.y)) {
+        this.drivingVehicle = null;
+        try { this.vehicleManager.exitVehicle(); } catch (e) { /* silent */ }
+        const gp = this._lastGoodCam;
+        if (this.player?.body) this.player.body.position.set(gp ? gp.px : 0, (gp ? gp.py : 3), gp ? gp.pz : 0);
+        this.weaponViewModel?.setWeapon?.(this.weaponManager?.getCurrentWeapon?.());
+        return;
+      }
 
       const w = im.isKeyPressed('w'), s = im.isKeyPressed('s');
       const a = im.isKeyPressed('a'), d = im.isKeyPressed('d');

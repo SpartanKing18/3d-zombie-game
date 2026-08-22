@@ -16,9 +16,14 @@ export class DayNightCycle {
     this._colTmp   = new THREE.Color();
 
     // Moon light for nights
-    this._moonLight = new THREE.DirectionalLight(0x334466, 0);
+    this._moonLight = new THREE.DirectionalLight(0x6a7fb0, 0);
     this._moonLight.position.set(-50, 80, -60);
     this.scene.add(this._moonLight);
+
+    // Always-on ambient floor so the scene is never pitch black at night, even if
+    // the image-based environment is weak/unavailable. Boosted at night below.
+    this._ambient = new THREE.AmbientLight(0x5a6478, 0.25);
+    this.scene.add(this._ambient);
   }
 
   update(deltaTime) {
@@ -67,6 +72,9 @@ export class DayNightCycle {
       // Sun intensity: smooth, no abrupt jump at horizon
       const sunIntensity = Math.max(0, Math.pow(sunElevation, 0.6)) * 2.0 + 0.04;
       this.directionalLight.intensity = sunIntensity;
+      // Below the horizon the sun's shadow camera sits underground and would cast the
+      // whole world into shadow — turn shadow casting off at night.
+      this.directionalLight.castShadow = sunElevation > 0.03;
 
       // Color: warm golden at sunrise/set, white-blue at noon, deep blue at night
       if (sunElevation > 0.35) {
@@ -89,36 +97,42 @@ export class DayNightCycle {
     // out to a white haze. Dim the ambient IBL and tone-mapping exposure inside so
     // the interior reads properly; restore outdoors.
     const indoor = this.game.inFriendHouse;
-    if (this.scene) this.scene.environmentIntensity = (0.16 + dayF * 0.84) * (indoor ? 0.4 : 1);
-    if (this.sceneManager?.fillLight) this.sceneManager.fillLight.intensity = (0.04 + dayF * 0.36) * (indoor ? 0.5 : 1);
-    if (this.sceneManager?.hemiLight) this.sceneManager.hemiLight.intensity = 0.08 + dayF * 0.42;
+    // Night keeps a visible floor (raised from near-zero) so the world stays dark-but-
+    // readable instead of going pitch black — you still want a flashlight, but the
+    // screen never reads as "black".
+    if (this.scene) this.scene.environmentIntensity = (0.5 + dayF * 0.5) * (indoor ? 0.4 : 1);
+    if (this.sceneManager?.fillLight) this.sceneManager.fillLight.intensity = (0.16 + dayF * 0.30) * (indoor ? 0.5 : 1);
+    if (this.sceneManager?.hemiLight) this.sceneManager.hemiLight.intensity = 0.5 + dayF * 0.3;
+    // Ambient floor: strong at night (moonlit) so nothing goes fully black; low by day
+    // (the sun carries daytime), and never touches the friend's-house interior mood.
+    if (this._ambient) this._ambient.intensity = indoor ? 0.15 : (0.7 - dayF * 0.5);
     // Exposure: runs before WeatherSystem's lightning spike each frame, so storm
-    // flashes still win. Indoors is always clear, so no conflict there.
-    if (this.game.renderer) this.game.renderer.toneMappingExposure = indoor ? 0.62 : 0.85;
+    // flashes still win. Lift it a touch at night to keep shadows out of pure black.
+    if (this.game.renderer) this.game.renderer.toneMappingExposure = indoor ? 0.62 : (0.85 + (1 - dayF) * 0.2);
 
     // Moon: opposite direction, cool blue-white, strongest at midnight (also player-anchored)
     if (this._moonLight) {
       this._moonLight.position.x = px - Math.cos(sunAngle) * 300;
       this._moonLight.position.y = Math.max(30, -sunElevation * 280 + 30);
       this._moonLight.position.z = pz - Math.sin(sunAngle * 0.7) * 150;
-      this._moonLight.intensity = Math.max(0, -sunElevation) * 0.4;
+      this._moonLight.intensity = Math.max(0, -sunElevation) * 0.85 + 0.1;
     }
 
     // Fog: heavy, dread-inducing haze — moderate by day, thick and near-black at
     // night so visibility is limited and things loom out of the murk.
     if (this.scene.fog) {
       const dayFog   = 0.005;
-      const nightFog = 0.0105;
+      const nightFog = 0.0065;   // thinner night fog so the murk doesn't read as black
       const fogT = Math.max(0, -sunElevation);  // 0 at day, 1 at midnight
       this.scene.fog.density = dayFog + (nightFog - dayFog) * fogT;
-      // Fog color: desaturated grey-teal, going nearly black at night
+      // Fog color: desaturated grey-teal, dark navy at night (not pure black)
       if (sunElevation > 0.1) {
         this.scene.fog.color.set(0x545e5a);
       } else if (sunElevation > -0.1) {
         const t = (sunElevation + 0.1) / 0.2;
-        this.scene.fog.color.setHex(t > 0.5 ? 0x3a3630 : 0x121a1c);
+        this.scene.fog.color.setHex(t > 0.5 ? 0x3a3630 : 0x1a2226);
       } else {
-        this.scene.fog.color.set(0x060a0b);
+        this.scene.fog.color.set(0x121a20);
       }
     }
 
